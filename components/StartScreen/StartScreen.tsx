@@ -45,7 +45,7 @@ export default function StartScreen() {
         <div className={styles.actions}><button className={styles.primary} onClick={() => user ? window.location.assign("/game") : setMode("login")}>▶ Play</button><button className={styles.secondary} onClick={() => user ? window.location.assign("/multiplayer") : setMode("login")}>🌐 Multiplayer</button></div>
         {!user && <p className={styles.hint}>Sign in or create an account to start playing.</p>}
       </div>
-      <div className={styles.art} aria-hidden="true"><div className={`\${styles.cube} \${styles.c1}`}/><div className={`\${styles.cube} \${styles.c2}`}/><div className={`\${styles.cube} \${styles.c3}`}/><div className={styles.avatar}><div className={styles.head}><i/><i/></div><div className={styles.body}/><div className={styles.leg l1}/><div className={styles.leg l2}/></div><div className={styles.platform}/></div>
+      <div className={styles.art} aria-hidden="true"><div className={`${styles.cube} ${styles.c1}`}/><div className={`${styles.cube} ${styles.c2}`}/><div className={`${styles.cube} ${styles.c3}`}/><div className={styles.avatar}><div className={styles.head}><i/><i/></div><div className={styles.body}/><div className={`${styles.leg} ${styles.l1}`}/><div className={`${styles.leg} ${styles.l2}`}/></div><div className={styles.platform}/></div>
     </section>
     {mode && <div className={styles.overlay} onMouseDown={e => { if (e.target === e.currentTarget) setMode(null); }}><section className={styles.modal}>
       <button className={styles.x} onClick={() => setMode(null)}>×</button><h2>{mode === "login" ? "Welcome back" : "Create account"}</h2><p>{mode === "login" ? "Log in to continue your world." : "Choose a username and password."}</p>
