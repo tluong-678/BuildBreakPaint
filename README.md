@@ -56,3 +56,4 @@ npm run start
 - This is a runnable starter project, not a production-hardened public game. Add server-side rate limits, moderation, validation, and abuse protection before opening it to everyone.
 *This is a supabase to login or sign in project and this is a file to make a web, you can copy but make it different!*
 ***official web: "https://buildbreakpaint.netlify.app"***
+  As since, official web can't sign in with google and sign up with google!
