@@ -54,3 +54,5 @@ npm run start
 - Autosave currently creates a new save record each time it runs. A retention/cleanup policy should be added before production.
 - The simple profanity filter is client-side only and is not a security or moderation system.
 - This is a runnable starter project, not a production-hardened public game. Add server-side rate limits, moderation, validation, and abuse protection before opening it to everyone.
+*This is a supabase to login or sign in project and this is a file to make a web, you can copy but make it different!*
+***official web: "https://buildbreakpaint.netlify.app"***
