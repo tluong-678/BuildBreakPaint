@@ -23,7 +23,7 @@ npm install
 6. In Authentication > URL Configuration, set the Site URL to your app URL and add redirect URLs:
    - `http://localhost:3000/auth/callback`
    - Your production domain followed by `/auth/callback`
-7. For username/password accounts in this starter, turn off email confirmation in Supabase Authentication settings. This project maps usernames to synthetic addresses ending in `@bbp.local`; users should sign in with the username, not an email address.
+7. For username/password accounts in this starter, turn off email confirmation in Supabase Authentication settings.; users should sign in with the username, not an email address.
 
 Do not expose a Supabase service-role key in browser code. This project uses the public anon/publishable key and Row Level Security.
 
