@@ -1,3 +1,4 @@
+
 "use client";
 
 import dynamic from "next/dynamic";
@@ -11,6 +12,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import type { BlockData, Tool, WorldData } from "./types";
 import MobileControls from "./MobileControls";
 import { createBrowserSupabase } from "@/lib/supabase/client";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 import styles from "./Game.module.css";
 
 const GameCanvas = dynamic(() => import("./GameCanvas"), {
@@ -41,6 +43,8 @@ const starterBlocks: BlockData[] = [
 ];
 
 export default function MultiplayerClient() {
+  const { t } = useLanguage();
+
   const [username, setUsername] = useState("Player");
   const [blocks, setBlocks] = useState<BlockData[]>(starterBlocks);
   const [players, setPlayers] = useState<PlayerState[]>([]);
@@ -77,7 +81,7 @@ export default function MultiplayerClient() {
       .catch(() => {});
   }, []);
 
-  // Tải thế giới chung đã lưu trên Supabase.
+  // Tải bản đồ chung.
   useEffect(() => {
     let cancelled = false;
 
@@ -101,7 +105,7 @@ export default function MultiplayerClient() {
     };
   }, []);
 
-  // Realtime: presence, chat, block updates, player positions.
+  // Realtime: người chơi, chat, bản đồ.
   useEffect(() => {
     let supabase;
 
@@ -152,9 +156,15 @@ export default function MultiplayerClient() {
     });
 
     channel.on("broadcast", { event: "chat" }, ({ payload }) => {
-      setMessages((old) =>
-        [...old, payload as ChatMessage].slice(-100)
-      );
+      const incoming = payload as ChatMessage;
+
+      setMessages((old) => {
+        if (old.some((item) => item.id === incoming.id)) {
+          return old;
+        }
+
+        return [...old, incoming].slice(-100);
+      });
     });
 
     channel.on("broadcast", { event: "world" }, ({ payload }) => {
@@ -165,6 +175,7 @@ export default function MultiplayerClient() {
         Array.isArray(incoming.blocks)
       ) {
         setBlocks(incoming.blocks);
+        blocksRef.current = incoming.blocks;
       }
     });
 
@@ -208,7 +219,26 @@ export default function MultiplayerClient() {
     };
   }, [username]);
 
-  // Lưu block vào database và gửi realtime cho người trong phòng.
+  // Gửi vị trí nhân vật qua realtime.
+  const sendPlayerPosition = useCallback(
+    (position: { x: number; y: number; z: number }) => {
+      const channel = channelRef.current;
+      if (!channel) return;
+
+      void channel.send({
+        type: "broadcast",
+        event: "player",
+        payload: {
+          id: playerIdRef.current,
+          username,
+          ...position,
+        },
+      });
+    },
+    [username]
+  );
+
+  // Lưu và phát bản đồ chung.
   const broadcastWorld = useCallback(
     async (nextBlocks: BlockData[]) => {
       const world: WorldData = {
@@ -352,12 +382,19 @@ export default function MultiplayerClient() {
     setDraft("");
   }
 
+  const connectionText =
+    connection === "SUBSCRIBED"
+      ? "🟢 Online"
+      : connection === "Connecting…"
+        ? t("connecting")
+        : connection;
+
   return (
     <main className={styles.multiPage}>
       <header className={styles.top}>
-        <a href="/game">← Back to game</a>
-        <h1>Multiplayer</h1>
-        <span>{connection}</span>
+        <a href="/game">← {t("backToGame")}</a>
+        <h1>{t("multiplayer")}</h1>
+        <span>{connectionText}</span>
       </header>
 
       <section className={styles.stage}>
@@ -368,6 +405,8 @@ export default function MultiplayerClient() {
           direction={direction}
           jumpSignal={jumpSignal}
           fov={55}
+          onPosition={sendPlayerPosition}
+          otherPlayers={players}
         />
 
         <MobileControls
@@ -381,20 +420,22 @@ export default function MultiplayerClient() {
       </section>
 
       <nav className={styles.toolbar}>
-        {(["build", "break", "paint"] as Tool[]).map(
-          (item) => (
-            <button
-              key={item}
-              className={tool === item ? styles.active : ""}
-              onClick={() => setTool(item)}
-            >
-              {item.toUpperCase()}
-            </button>
-          )
-        )}
+        {(["build", "break", "paint"] as Tool[]).map((item) => (
+          <button
+            key={item}
+            className={tool === item ? styles.active : ""}
+            onClick={() => setTool(item)}
+          >
+            {item === "build"
+              ? t("buildTool")
+              : item === "break"
+                ? t("breakTool")
+                : t("paintTool")}
+          </button>
+        ))}
 
         <label className={styles.color}>
-          Color
+          {t("color")}
           <input
             type="color"
             value={paint}
@@ -405,11 +446,14 @@ export default function MultiplayerClient() {
 
       <section className={styles.multiGrid}>
         <div className={styles.roomCard}>
-          <h2>Public world</h2>
-          <p>Everyone in this room edits the same map.</p>
+          <h2>{t("publicWorld")}</h2>
+          <p>{t("sharedWorldHelp")}</p>
 
-          <h3>Players online ({players.length + 1})</h3>
-          <p>🟢 {username} (you)</p>
+          <h3>
+            {t("playersOnline")} ({players.length + 1})
+          </h3>
+
+          <p>🟢 {username} ({t("you")})</p>
 
           {players.map((player) => (
             <p key={player.id}>
@@ -419,7 +463,7 @@ export default function MultiplayerClient() {
         </div>
 
         <div className={styles.chatCard}>
-          <h2>Live chat</h2>
+          <h2>{t("liveChat")}</h2>
 
           <div className={styles.chatMessages}>
             {messages.map((message) => (
@@ -438,11 +482,11 @@ export default function MultiplayerClient() {
                   void sendChat();
                 }
               }}
-              placeholder="Type a message…"
+              placeholder={t("messagePlaceholder")}
             />
 
             <button onClick={() => void sendChat()}>
-              Send
+              {t("send")}
             </button>
           </div>
         </div>
