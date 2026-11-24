@@ -2,7 +2,13 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { BlockData, Tool, WorldData } from "./types";
 import MobileControls from "./MobileControls";
 import styles from "./Game.module.css";
@@ -17,6 +23,13 @@ const starterBlocks: BlockData[] = [
   { id: "starter-3", x: 0, y: 1, z: 0, color: "#72b86b" },
 ];
 
+type SaveItem = {
+  id: string;
+  name: string;
+  type: string;
+  created_at: string;
+};
+
 export default function GameClient() {
   const [blocks, setBlocks] = useState<BlockData[]>(starterBlocks);
   const [tool, setTool] = useState<Tool>("build");
@@ -27,27 +40,16 @@ export default function GameClient() {
     "none" | "menu" | "save" | "load" | "camera"
   >("none");
 
-  const [saves, setSaves] = useState<
-    Array<{
-      id: string;
-      name: string;
-      type: string;
-      created_at: string;
-    }>
-  >([]);
-
+  const [saves, setSaves] = useState<SaveItem[]>([]);
   const [message, setMessage] = useState("");
   const [fov, setFov] = useState(55);
 
-  // Joystick movement
   const [direction, setDirection] = useState({
     x: 0,
     z: 0,
   });
 
-  // Mỗi lần tăng giá trị sẽ kích hoạt nhảy
   const [jumpSignal, setJumpSignal] = useState(0);
-
   const lastSaved = useRef("");
 
   const world = useMemo<WorldData>(
@@ -68,7 +70,7 @@ export default function GameClient() {
         body: JSON.stringify({
           name:
             type === "manual"
-              ? saveName
+              ? saveName.trim() || "My world"
               : `${
                   type === "auto" ? "Auto save" : "Exit save"
                 } · ${new Date().toLocaleString()}`,
@@ -89,42 +91,42 @@ export default function GameClient() {
     [saveName, world]
   );
 
-  // Auto save
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (JSON.stringify(world) !== lastSaved.current) {
         save("auto")
           .then(() => setMessage("Auto-saved"))
-          .catch((e) => setMessage(e.message));
+          .catch((error) => setMessage(error.message));
       }
     }, 30000);
 
     return () => window.clearInterval(timer);
   }, [save, world]);
 
-  // Save khi rời trang
   useEffect(() => {
-    const onVisibility = () => {
+    function onVisibility() {
       if (
-        document.visibilityState === "hidden" &&
-        JSON.stringify(world) !== lastSaved.current
+        document.visibilityState !== "hidden" ||
+        JSON.stringify(world) === lastSaved.current
       ) {
-        const payload = new Blob(
-          [
-            JSON.stringify({
-              name: "Exit save",
-              type: "exit",
-              world,
-            }),
-          ],
-          {
-            type: "application/json",
-          }
-        );
-
-        navigator.sendBeacon("/api/saves", payload);
+        return;
       }
-    };
+
+      const payload = new Blob(
+        [
+          JSON.stringify({
+            name: "Exit save",
+            type: "exit",
+            world,
+          }),
+        ],
+        {
+          type: "application/json",
+        }
+      );
+
+      navigator.sendBeacon("/api/saves", payload);
+    }
 
     document.addEventListener("visibilitychange", onVisibility);
 
@@ -137,10 +139,10 @@ export default function GameClient() {
   }, [world]);
 
   async function refreshSaves() {
-    const res = await fetch("/api/saves");
-    const data = await res.json();
+    const response = await fetch("/api/saves");
+    const data = await response.json();
 
-    if (!res.ok) {
+    if (!response.ok) {
       throw new Error(data.error || "Could not load saves");
     }
 
@@ -148,46 +150,93 @@ export default function GameClient() {
   }
 
   async function loadSave(id: string) {
-    const res = await fetch(`/api/saves/${id}/load`, {
+    const response = await fetch(`/api/saves/${id}/load`, {
       method: "POST",
     });
 
-    const data = await res.json();
+    const data = await response.json();
 
-    if (!res.ok) {
+    if (!response.ok) {
       setMessage(data.error || "Load failed");
       return;
     }
 
-    setBlocks(data.save.world.blocks);
-    lastSaved.current = JSON.stringify(data.save.world);
+    const loadedWorld = data.save.world;
+
+    setBlocks(loadedWorld.blocks);
+    lastSaved.current = JSON.stringify(loadedWorld);
     setPanel("none");
     setMessage("World loaded");
   }
 
-  function blockClick(id: string) {
+  function blockClick(
+    id: string,
+    normal: [number, number, number]
+  ) {
+    const selected = blocks.find(
+      (block) => block.id === id
+    );
+
+    if (!selected) return;
+
     if (tool === "break") {
-      setBlocks((old) => old.filter((b) => b.id !== id));
+      setBlocks((old) =>
+        old.filter((block) => block.id !== id)
+      );
+      return;
     }
 
     if (tool === "paint") {
       setBlocks((old) =>
-        old.map((b) =>
-          b.id === id ? { ...b, color: paint } : b
+        old.map((block) =>
+          block.id === id
+            ? { ...block, color: paint }
+            : block
         )
       );
+      return;
+    }
+
+    if (tool === "build") {
+      const x = selected.x + normal[0];
+      const y = selected.y + normal[1];
+      const z = selected.z + normal[2];
+
+      const occupied = blocks.some(
+        (block) =>
+          block.x === x &&
+          block.y === y &&
+          block.z === z
+      );
+
+      if (occupied) return;
+
+      setBlocks((old) => [
+        ...old,
+        {
+          id: crypto.randomUUID(),
+          x,
+          y,
+          z,
+          color: paint,
+        },
+      ]);
     }
   }
 
-  function groundClick([x, y, z]: [number, number, number]) {
-    if (
-      tool !== "build" ||
-      blocks.some(
-        (b) => b.x === x && b.y === y && b.z === z
-      )
-    ) {
-      return;
-    }
+  function groundClick(
+    [x, y, z]: [number, number, number]
+  ) {
+    if (tool !== "build") return;
+
+    const occupied = blocks.some(
+      (block) =>
+        block.x === x &&
+        block.y === y &&
+        block.z === z
+    );
+
+    if (occupied) return;
 
     setBlocks((old) => [
       ...old,
@@ -201,13 +250,19 @@ export default function GameClient() {
     ]);
   }
 
+  function resetWorld() {
+    if (!window.confirm("Reset this world?")) return;
+
+    setBlocks(starterBlocks);
+    setMessage("World reset");
+    setPanel("none");
+  }
+
   return (
     <main className={styles.page}>
       <header className={styles.top}>
         <a href="/">← Build, Break, Paint!</a>
-
         <span>{message}</span>
-
         <button onClick={() => setPanel("menu")}>
           ☰ Menu
         </button>
@@ -223,28 +278,27 @@ export default function GameClient() {
           fov={fov}
         />
 
-        {/* Điều khiển trên điện thoại */}
         <MobileControls
           onMove={(x, z) => {
             setDirection({ x, z });
           }}
           onJump={() => {
-            setJumpSignal((old) => old + 1);
+            setJumpSignal((value) => value + 1);
           }}
         />
       </section>
 
       <nav className={styles.toolbar}>
         {(["build", "break", "paint"] as Tool[]).map(
-          (t) => (
+          (item) => (
             <button
-              key={t}
+              key={item}
               className={
-                tool === t ? styles.active : ""
+                tool === item ? styles.active : ""
               }
-              onClick={() => setTool(t)}
+              onClick={() => setTool(item)}
             >
-              {t.toUpperCase()}
+              {item.toUpperCase()}
             </button>
           )
         )}
@@ -254,7 +308,9 @@ export default function GameClient() {
           <input
             type="color"
             value={paint}
-            onChange={(e) => setPaint(e.target.value)}
+            onChange={(event) =>
+              setPaint(event.target.value)
+            }
           />
         </label>
       </nav>
@@ -280,23 +336,15 @@ export default function GameClient() {
                 <button
                   onClick={() => {
                     setPanel("load");
-                    refreshSaves().catch((e) =>
-                      setMessage(e.message)
+                    refreshSaves().catch((error) =>
+                      setMessage(error.message)
                     );
                   }}
                 >
                   Load
                 </button>
 
-                <button
-                  onClick={() => {
-                    if (window.confirm("Reset this world?")) {
-                      setBlocks(starterBlocks);
-                    }
-
-                    setPanel("none");
-                  }}
-                >
+                <button onClick={resetWorld}>
                   Reset
                 </button>
 
@@ -320,8 +368,8 @@ export default function GameClient() {
 
                 <input
                   value={saveName}
-                  onChange={(e) =>
-                    setSaveName(e.target.value)
+                  onChange={(event) =>
+                    setSaveName(event.target.value)
                   }
                   placeholder="Save name"
                 />
@@ -333,8 +381,8 @@ export default function GameClient() {
                         setMessage("Saved");
                         setPanel("none");
                       })
-                      .catch((e) =>
-                        setMessage(e.message)
+                      .catch((error) =>
+                        setMessage(error.message)
                       )
                   }
                 >
@@ -351,32 +399,35 @@ export default function GameClient() {
                   <p>No saves found.</p>
                 )}
 
-                {saves.map((s) => (
+                {saves.map((item) => (
                   <div
                     className={styles.saveRow}
-                    key={s.id}
+                    key={item.id}
                   >
                     <span>
-                      {s.name} · {s.type}
+                      {item.name} · {item.type}
                     </span>
 
                     <button
-                      onClick={() => loadSave(s.id)}
+                      onClick={() => loadSave(item.id)}
                     >
                       Load
                     </button>
 
                     <button
                       onClick={async () => {
-                        const r = await fetch(
-                          `/api/saves/${s.id}`,
+                        const response = await fetch(
+                          `/api/saves/${item.id}`,
                           {
                             method: "DELETE",
                           }
                         );
 
-                        if (r.ok) {
-                          refreshSaves();
+                        if (response.ok) {
+                          await refreshSaves();
+                          setMessage("Save deleted");
+                        } else {
+                          setMessage("Delete failed");
                         }
                       }}
                     >
@@ -399,15 +450,14 @@ export default function GameClient() {
                     min="45"
                     max="110"
                     value={fov}
-                    onChange={(e) =>
-                      setFov(Number(e.target.value))
+                    onChange={(event) =>
+                      setFov(Number(event.target.value))
                     }
                   />
                 </label>
 
                 <p>
-                  Camera zoom and rotation: drag and
-                  scroll on the 3D scene.
+                  Drag to rotate and scroll to zoom.
                 </p>
               </>
             )}
