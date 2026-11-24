@@ -1,5 +1,6 @@
-import GameClient from "@/components/Game/GameClient";
+
+import { redirect } from "next/navigation";
 
 export default function GamePage() {
-  return <GameClient />;
+  redirect("/play");
 }
