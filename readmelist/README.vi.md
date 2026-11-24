@@ -10,7 +10,7 @@ Trò chơi xây dựng thế giới 3D, nơi bạn có thể xây, phá và tô 
 </p>
 
 <p align="center">
-  <a href="https://google.com/">
+  <a href="https://buildbreakpaintr.up.railway.app/">
     <strong>🎮 Chơi Build, Break, Paint!</strong>
   </a>
 </p>
@@ -99,7 +99,7 @@ npm run start
 
 ## 🌐 Website chính thức
 
-đang tìm =)
+[BuildBreakPaint](buildbreakpaintr.up.railway.app)
 
 ## 📁 Repository GitHub
 
