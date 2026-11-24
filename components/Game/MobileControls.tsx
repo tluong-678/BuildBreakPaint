@@ -1,13 +1,16 @@
+
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import type { PointerEvent } from "react";
+import styles from "./Game.module.css";
 
 type MobileControlsProps = {
   onMove: (x: number, z: number) => void;
   onJump: () => void;
 };
 
-const MAX_DISTANCE = 42;
+const MAX_DISTANCE = 48;
 const DEAD_ZONE = 0.12;
 
 export default function MobileControls({
@@ -16,7 +19,6 @@ export default function MobileControls({
 }: MobileControlsProps) {
   const joystickRef = useRef<HTMLDivElement>(null);
   const pointerIdRef = useRef<number | null>(null);
-
   const [knob, setKnob] = useState({ x: 0, y: 0 });
   const [active, setActive] = useState(false);
 
@@ -29,10 +31,10 @@ export default function MobileControls({
 
   const updateJoystick = useCallback(
     (clientX: number, clientY: number) => {
-      const joystick = joystickRef.current;
-      if (!joystick) return;
+      const element = joystickRef.current;
+      if (!element) return;
 
-      const rect = joystick.getBoundingClientRect();
+      const rect = element.getBoundingClientRect();
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
 
@@ -40,7 +42,6 @@ export default function MobileControls({
       let dy = clientY - centerY;
 
       const distance = Math.hypot(dx, dy);
-
       if (distance > MAX_DISTANCE) {
         const scale = MAX_DISTANCE / distance;
         dx *= scale;
@@ -57,72 +58,82 @@ export default function MobileControls({
 
       onMove(x, z);
     },
-    [onMove],
+    [onMove]
   );
 
-  const handlePointerDown = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+  const handleDown = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
       if (pointerIdRef.current !== null) return;
 
       event.preventDefault();
-
       pointerIdRef.current = event.pointerId;
       setActive(true);
-
       event.currentTarget.setPointerCapture(event.pointerId);
 
       updateJoystick(event.clientX, event.clientY);
     },
-    [updateJoystick],
+    [updateJoystick]
   );
 
-  const handlePointerMove = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+  const handleMove = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
       if (pointerIdRef.current !== event.pointerId) return;
-
       event.preventDefault();
       updateJoystick(event.clientX, event.clientY);
     },
-    [updateJoystick],
+    [updateJoystick]
   );
 
-  const handlePointerEnd = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
+  const handleEnd = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
       if (pointerIdRef.current !== event.pointerId) return;
       resetJoystick();
     },
-    [resetJoystick],
+    [resetJoystick]
   );
 
   return (
-    <div className="mobileControls">
-      <div
-        ref={joystickRef}
-        className={`joystick ${active ? "joystickActive" : ""}`}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerEnd}
-        onPointerCancel={handlePointerEnd}
-      >
+    <div className={styles.mobileControls}>
+      <div className={styles.leftControls}>
+        <div className={styles.controlCaption}>MOVE</div>
         <div
-          className="joystickKnob"
-          style={{
-            transform: `translate(${knob.x}px, ${knob.y}px)`,
-          }}
-        />
+          ref={joystickRef}
+          className={`${styles.joystick} ${
+            active ? styles.joystickActive : ""
+          }`}
+          onPointerDown={handleDown}
+          onPointerMove={handleMove}
+          onPointerUp={handleEnd}
+          onPointerCancel={handleEnd}
+        >
+          <span className={styles.joyArrow}>▲</span>
+          <span className={styles.joyArrow}>▼</span>
+          <span className={styles.joyArrow}>◀</span>
+          <span className={styles.joyArrow}>▶</span>
+          <div
+            className={styles.joystickKnob}
+            style={{
+              transform: `translate(${knob.x}px, ${knob.y}px)`,
+            }}
+          />
+        </div>
       </div>
 
-      <button
-        type="button"
-        className="jumpButton"
-        onPointerDown={(event) => {
-          event.preventDefault();
-          onJump();
-        }}
-        aria-label="Jump"
-      >
-        JUMP
-      </button>
+      <div className={styles.rightControls}>
+        <div className={styles.controlCaption}>ACTION</div>
+        <button
+          type="button"
+          className={styles.jumpButton}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            onJump();
+          }}
+          aria-label="Jump"
+        >
+          <span className={styles.jumpArrow}>↑</span>
+          <span>JUMP</span>
+        </button>
+      </div>
     </div>
   );
 }
