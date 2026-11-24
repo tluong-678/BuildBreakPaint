@@ -37,8 +37,8 @@ export default function GameClient() {
   const [saveName, setSaveName] = useState("My world");
 
   const [panel, setPanel] = useState<
-    "none" | "menu" | "save" | "load" | "camera"
-  >("none");
+  "none" | "menu" | "save" | "load" | "camera" | "leaderboards"
+>("none");
 
   const [saves, setSaves] = useState<SaveItem[]>([]);
   const [message, setMessage] = useState("");
