@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useRef, useState } from "react";
@@ -8,8 +7,7 @@ type MobileControlsProps = {
   onJump: () => void;
 };
 
-const JOYSTICK_RADIUS = 45;
-const MAX_DISTANCE = 34;
+const MAX_DISTANCE = 42;
 const DEAD_ZONE = 0.12;
 
 export default function MobileControls({
@@ -35,14 +33,13 @@ export default function MobileControls({
       if (!joystick) return;
 
       const rect = joystick.getBoundingClientRect();
-
       const centerX = rect.left + rect.width / 2;
       const centerY = rect.top + rect.height / 2;
 
       let dx = clientX - centerX;
       let dy = clientY - centerY;
 
-      const distance = Math.sqrt(dx * dx + dy * dy);
+      const distance = Math.hypot(dx, dy);
 
       if (distance > MAX_DISTANCE) {
         const scale = MAX_DISTANCE / distance;
@@ -89,22 +86,12 @@ export default function MobileControls({
     [updateJoystick],
   );
 
-  const handlePointerUp = useCallback(
+  const handlePointerEnd = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       if (pointerIdRef.current !== event.pointerId) return;
-
-      event.preventDefault();
       resetJoystick();
     },
     [resetJoystick],
-  );
-
-  const handleJump = useCallback(
-    (event: React.PointerEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      onJump();
-    },
-    [onJump],
   );
 
   return (
@@ -112,15 +99,10 @@ export default function MobileControls({
       <div
         ref={joystickRef}
         className={`joystick ${active ? "joystickActive" : ""}`}
-        style={{
-          width: JOYSTICK_RADIUS * 2,
-          height: JOYSTICK_RADIUS * 2,
-        }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onLostPointerCapture={resetJoystick}
+        onPointerUp={handlePointerEnd}
+        onPointerCancel={handlePointerEnd}
       >
         <div
           className="joystickKnob"
@@ -133,8 +115,11 @@ export default function MobileControls({
       <button
         type="button"
         className="jumpButton"
-        onPointerDown={handleJump}
-        aria-label="Nhảy"
+        onPointerDown={(event) => {
+          event.preventDefault();
+          onJump();
+        }}
+        aria-label="Jump"
       >
         JUMP
       </button>
