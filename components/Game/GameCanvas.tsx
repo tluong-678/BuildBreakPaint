@@ -397,7 +397,6 @@ function Player({
       Math.min(1, dt * 3)
     );
 
-    state.controls?.update?.();
 
     // Send position to multiplayer.
     sendTimer.current += dt;
