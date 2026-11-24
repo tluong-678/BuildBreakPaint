@@ -1,95 +1,53 @@
 
-"use client";
-
-import { useEffect, useRef } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { Grid, OrbitControls } from "@react-three/drei";
-import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
-import * as THREE from "three";
-import type { BlockData } from "./types";
-
-export type OtherPlayer = {
-  id: string;
-  username: string;
-  x: number;
-  y: number;
-  z: number;
-};
-
-type PlayerPosition = {
-  x: number;
-  y: number;
-  z: number;
-};
-
-type GameCanvasProps = {
-  blocks: BlockData[];
-  onBlockClick: (
-    id: string,
-    normal: [number, number, number]
-  ) => void;
-  onGroundClick: (point: [number, number, number]) => void;
-  direction: { x: number; z: number };
-  jumpSignal: number;
-  fov: number;
-  onPosition?: (position: PlayerPosition) => void;
-  otherPlayers?: OtherPlayer[];
-};
-
-function Block({
-  block,
-  onClick,
-}: {
-  block: BlockData;
-  onClick: (
-    id: string,
-    normal: [number, number, number]
-  ) => void;
-}) {
-  return (
-    <mesh
-      position={[block.x, block.y, block.z]}
-      castShadow
-      receiveShadow
-      onClick={(event) => {
-        event.stopPropagation();
-
-        const normal = event.face?.normal
-          ? event.face.normal
-              .clone()
-              .transformDirection(event.object.matrixWorld)
-              .round()
-          : new THREE.Vector3(0, 1, 0);
-
-        onClick(block.id, [
-          normal.x,
-          normal.y,
-          normal.z,
-        ]);
-      }}
-    >
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={block.color} />
-    </mesh>
-  );
-}
-
 function OtherPlayerMesh({
   player,
 }: {
   player: OtherPlayer;
 }) {
   return (
-    <mesh
-      position={[player.x, player.y, player.z]}
-      castShadow
-    >
-      <boxGeometry args={[0.8, 0.8, 0.8]} />
-      <meshStandardMaterial
-        color="#45d6c5"
-        emissive="#123f3b"
-      />
-    </mesh>
+    <group position={[player.x, player.y, player.z]}>
+      {/* Head */}
+      <mesh position={[0, 0.92, 0]} castShadow>
+        <boxGeometry args={[0.62, 0.62, 0.62]} />
+        <meshStandardMaterial color="#f2c49a" />
+      </mesh>
+
+      {/* Face */}
+      <mesh position={[-0.15, 0.96, -0.315]}>
+        <boxGeometry args={[0.07, 0.09, 0.025]} />
+        <meshStandardMaterial color="#17253b" />
+      </mesh>
+      <mesh position={[0.15, 0.96, -0.315]}>
+        <boxGeometry args={[0.07, 0.09, 0.025]} />
+        <meshStandardMaterial color="#17253b" />
+      </mesh>
+
+      {/* Body */}
+      <mesh position={[0, 0.12, 0]} castShadow>
+        <boxGeometry args={[0.78, 0.9, 0.42]} />
+        <meshStandardMaterial color="#32b7a8" />
+      </mesh>
+
+      {/* Arms */}
+      <mesh position={[-0.53, 0.12, 0]} castShadow>
+        <boxGeometry args={[0.28, 0.82, 0.34]} />
+        <meshStandardMaterial color="#f2c49a" />
+      </mesh>
+      <mesh position={[0.53, 0.12, 0]} castShadow>
+        <boxGeometry args={[0.28, 0.82, 0.34]} />
+        <meshStandardMaterial color="#f2c49a" />
+      </mesh>
+
+      {/* Legs */}
+      <mesh position={[-0.21, -0.72, 0]} castShadow>
+        <boxGeometry args={[0.34, 0.62, 0.38]} />
+        <meshStandardMaterial color="#354f9d" />
+      </mesh>
+      <mesh position={[0.21, -0.72, 0]} castShadow>
+        <boxGeometry args={[0.34, 0.62, 0.38]} />
+        <meshStandardMaterial color="#354f9d" />
+      </mesh>
+    </group>
   );
 }
 
@@ -106,39 +64,35 @@ function Player({
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
   onPosition?: (position: PlayerPosition) => void;
 }) {
-  const playerRef = useRef<THREE.Mesh>(null);
+  const playerRef = useRef<THREE.Group>(null);
+  const leftArm = useRef<THREE.Mesh>(null);
+  const rightArm = useRef<THREE.Mesh>(null);
+  const leftLeg = useRef<THREE.Mesh>(null);
+  const rightLeg = useRef<THREE.Mesh>(null);
+
   const velocityY = useRef(0);
   const keys = useRef<Record<string, boolean>>({});
   const jumpRequested = useRef(false);
   const lastJump = useRef(jumpSignal);
-  const grounded = useRef(true);
+  const grounded = useRef(false);
   const positionSendTimer = useRef(0);
 
   const speed = 5;
   const gravity = 20;
   const jumpPower = 8;
-  const playerHeight = 0.8;
+  const playerHeight = 1.8;
   const groundTop = -0.5;
 
   useEffect(() => {
     function keyDown(event: KeyboardEvent) {
       const key = event.key.toLowerCase();
-
       const movementKeys = [
-        "w",
-        "a",
-        "s",
-        "d",
-        "arrowup",
-        "arrowdown",
-        "arrowleft",
-        "arrowright",
-        " ",
+        "w", "a", "s", "d",
+        "arrowup", "arrowdown",
+        "arrowleft", "arrowright", " ",
       ];
 
-      if (movementKeys.includes(key)) {
-        event.preventDefault();
-      }
+      if (movementKeys.includes(key)) event.preventDefault();
 
       if (key === " " && !keys.current[key]) {
         jumpRequested.current = true;
@@ -166,7 +120,7 @@ function Player({
     };
   }, []);
 
-  useFrame(({ camera }, delta) => {
+  useFrame(({ camera, clock }, delta) => {
     const player = playerRef.current;
     if (!player) return;
 
@@ -175,34 +129,34 @@ function Player({
     let moveX = direction.x;
     let moveZ = direction.z;
 
-    if (keys.current.a || keys.current.arrowleft) {
-      moveX -= 1;
-    }
-
-    if (keys.current.d || keys.current.arrowright) {
-      moveX += 1;
-    }
-
-    if (keys.current.w || keys.current.arrowup) {
-      moveZ -= 1;
-    }
-
-    if (keys.current.s || keys.current.arrowdown) {
-      moveZ += 1;
-    }
+    if (keys.current.a || keys.current.arrowleft) moveX -= 1;
+    if (keys.current.d || keys.current.arrowright) moveX += 1;
+    if (keys.current.w || keys.current.arrowup) moveZ -= 1;
+    if (keys.current.s || keys.current.arrowdown) moveZ += 1;
 
     const length = Math.hypot(moveX, moveZ);
-
     if (length > 1) {
       moveX /= length;
       moveZ /= length;
     }
 
-    // Di chuyển ngang.
+    const moving = Math.hypot(moveX, moveZ) > 0.08;
+
     player.position.x += moveX * speed * dt;
     player.position.z += moveZ * speed * dt;
 
-    // Nhận tín hiệu nhảy từ nút trên màn hình.
+    if (moving) {
+      player.rotation.y = Math.atan2(moveX, -moveZ);
+    }
+
+    // Simple blocky walking animation.
+    const swing = moving ? Math.sin(clock.elapsedTime * 9) * 0.55 : 0;
+
+    if (leftArm.current) leftArm.current.rotation.x = swing;
+    if (rightArm.current) rightArm.current.rotation.x = -swing;
+    if (leftLeg.current) leftLeg.current.rotation.x = -swing;
+    if (rightLeg.current) rightLeg.current.rotation.x = swing;
+
     if (jumpSignal !== lastJump.current) {
       jumpRequested.current = true;
       lastJump.current = jumpSignal;
@@ -216,12 +170,10 @@ function Player({
     jumpRequested.current = false;
 
     const previousY = player.position.y;
-
     velocityY.current -= gravity * dt;
     player.position.y += velocityY.current * dt;
     grounded.current = false;
 
-    // Mặt đất.
     const floorPlayerY = groundTop + playerHeight / 2;
 
     if (
@@ -233,12 +185,10 @@ function Player({
       grounded.current = true;
     }
 
-    // Hạ cánh trên các khối.
     if (velocityY.current <= 0) {
       for (const block of blocks) {
         const insideX =
           Math.abs(player.position.x - block.x) < 0.48;
-
         const insideZ =
           Math.abs(player.position.z - block.z) < 0.48;
 
@@ -261,19 +211,16 @@ function Player({
       }
     }
 
-    // Rơi khỏi bản đồ thì hồi sinh.
     if (player.position.y < -15) {
-      player.position.set(3, 1, 3);
+      player.position.set(3, 1.1, 3);
       velocityY.current = 0;
       grounded.current = false;
     }
 
-    // Gửi vị trí Multiplayer khoảng 10 lần/giây.
     positionSendTimer.current += dt;
 
     if (positionSendTimer.current >= 0.1) {
       positionSendTimer.current = 0;
-
       onPosition?.({
         x: player.position.x,
         y: player.position.y,
@@ -281,13 +228,12 @@ function Player({
       });
     }
 
-    // Camera bám theo nhân vật.
     const controls = controlsRef.current;
 
     if (controls) {
       const target = new THREE.Vector3(
         player.position.x,
-        player.position.y + 1,
+        player.position.y + 1.1,
         player.position.z
       );
 
@@ -296,109 +242,53 @@ function Player({
 
       controls.target.lerp(target, smooth);
       camera.position.add(shift.multiplyScalar(smooth));
-
       controls.update();
     }
   });
 
   return (
-    <mesh ref={playerRef} position={[3, 1, 3]} castShadow>
-      <boxGeometry args={[0.8, 0.8, 0.8]} />
-      <meshStandardMaterial color="#ffcc33" />
-    </mesh>
-  );
-}
-
-export default function GameCanvas({
-  blocks,
-  onBlockClick,
-  onGroundClick,
-  direction,
-  jumpSignal,
-  fov,
-  onPosition,
-  otherPlayers = [],
-}: GameCanvasProps) {
-  const controlsRef = useRef<OrbitControlsImpl | null>(null);
-
-  return (
-    <Canvas
-      shadows
-      camera={{
-        position: [9, 8, 11],
-        fov,
-      }}
-    >
-      <color attach="background" args={["#b9dcf5"]} />
-
-      <ambientLight intensity={0.75} />
-
-      <directionalLight
-        position={[8, 12, 5]}
-        intensity={1.4}
-        castShadow
-      />
-
-      {blocks.map((block) => (
-        <Block
-          key={block.id}
-          block={block}
-          onClick={onBlockClick}
-        />
-      ))}
-
-      {/* Nhân vật của người chơi hiện tại */}
-      <Player
-        direction={direction}
-        jumpSignal={jumpSignal}
-        blocks={blocks}
-        controlsRef={controlsRef}
-        onPosition={onPosition}
-      />
-
-      {/* Nhân vật của những người chơi khác */}
-      {otherPlayers.map((player) => (
-        <OtherPlayerMesh
-          key={player.id}
-          player={player}
-        />
-      ))}
-
-      <mesh
-        rotation={[-Math.PI / 2, 0, 0]}
-        position={[0, -0.51, 0]}
-        receiveShadow
-        onClick={(event) => {
-          event.stopPropagation();
-
-          onGroundClick([
-            Math.round(event.point.x),
-            0,
-            Math.round(event.point.z),
-          ]);
-        }}
-      >
-        <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#83b96d" />
+    <group ref={playerRef} position={[3, 1.1, 3]}>
+      {/* Head */}
+      <mesh position={[0, 0.92, 0]} castShadow>
+        <boxGeometry args={[0.62, 0.62, 0.62]} />
+        <meshStandardMaterial color="#ffd0a5" />
       </mesh>
 
-      <Grid
-        args={[100, 100]}
-        position={[0, -0.5, 0]}
-        cellSize={1}
-        cellThickness={0.5}
-        sectionSize={5}
-        sectionThickness={1}
-        fadeDistance={45}
-      />
+      {/* Face */}
+      <mesh position={[-0.15, 0.96, -0.315]}>
+        <boxGeometry args={[0.07, 0.09, 0.025]} />
+        <meshStandardMaterial color="#17253b" />
+      </mesh>
+      <mesh position={[0.15, 0.96, -0.315]}>
+        <boxGeometry args={[0.07, 0.09, 0.025]} />
+        <meshStandardMaterial color="#17253b" />
+      </mesh>
 
-      <OrbitControls
-        ref={controlsRef}
-        makeDefault
-        minDistance={3}
-        maxDistance={35}
-        maxPolarAngle={Math.PI / 2.05}
-      />
-    </Canvas>
+      {/* Shirt */}
+      <mesh position={[0, 0.12, 0]} castShadow>
+        <boxGeometry args={[0.78, 0.9, 0.42]} />
+        <meshStandardMaterial color="#ff9f35" />
+      </mesh>
+
+      {/* Arms */}
+      <mesh ref={leftArm} position={[-0.53, 0.12, 0]} castShadow>
+        <boxGeometry args={[0.28, 0.82, 0.34]} />
+        <meshStandardMaterial color="#ffd0a5" />
+      </mesh>
+      <mesh ref={rightArm} position={[0.53, 0.12, 0]} castShadow>
+        <boxGeometry args={[0.28, 0.82, 0.34]} />
+        <meshStandardMaterial color="#ffd0a5" />
+      </mesh>
+
+      {/* Pants */}
+      <mesh ref={leftLeg} position={[-0.21, -0.72, 0]} castShadow>
+        <boxGeometry args={[0.34, 0.62, 0.38]} />
+        <meshStandardMaterial color="#3156a5" />
+      </mesh>
+      <mesh ref={rightLeg} position={[0.21, -0.72, 0]} castShadow>
+        <boxGeometry args={[0.34, 0.62, 0.38]} />
+        <meshStandardMaterial color="#3156a5" />
+      </mesh>
+    </group>
   );
 }
