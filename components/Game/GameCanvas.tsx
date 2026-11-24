@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -6,6 +7,20 @@ import { Grid, OrbitControls } from "@react-three/drei";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import * as THREE from "three";
 import type { BlockData } from "./types";
+
+export type OtherPlayer = {
+  id: string;
+  username: string;
+  x: number;
+  y: number;
+  z: number;
+};
+
+type PlayerPosition = {
+  x: number;
+  y: number;
+  z: number;
+};
 
 type GameCanvasProps = {
   blocks: BlockData[];
@@ -17,6 +32,8 @@ type GameCanvasProps = {
   direction: { x: number; z: number };
   jumpSignal: number;
   fov: number;
+  onPosition?: (position: PlayerPosition) => void;
+  otherPlayers?: OtherPlayer[];
 };
 
 function Block({
@@ -57,16 +74,37 @@ function Block({
   );
 }
 
+function OtherPlayerMesh({
+  player,
+}: {
+  player: OtherPlayer;
+}) {
+  return (
+    <mesh
+      position={[player.x, player.y, player.z]}
+      castShadow
+    >
+      <boxGeometry args={[0.8, 0.8, 0.8]} />
+      <meshStandardMaterial
+        color="#45d6c5"
+        emissive="#123f3b"
+      />
+    </mesh>
+  );
+}
+
 function Player({
   direction,
   jumpSignal,
   blocks,
   controlsRef,
+  onPosition,
 }: {
   direction: { x: number; z: number };
   jumpSignal: number;
   blocks: BlockData[];
   controlsRef: React.RefObject<OrbitControlsImpl | null>;
+  onPosition?: (position: PlayerPosition) => void;
 }) {
   const playerRef = useRef<THREE.Mesh>(null);
   const velocityY = useRef(0);
@@ -74,6 +112,7 @@ function Player({
   const jumpRequested = useRef(false);
   const lastJump = useRef(jumpSignal);
   const grounded = useRef(true);
+  const positionSendTimer = useRef(0);
 
   const speed = 5;
   const gravity = 20;
@@ -229,6 +268,19 @@ function Player({
       grounded.current = false;
     }
 
+    // Gửi vị trí Multiplayer khoảng 10 lần/giây.
+    positionSendTimer.current += dt;
+
+    if (positionSendTimer.current >= 0.1) {
+      positionSendTimer.current = 0;
+
+      onPosition?.({
+        x: player.position.x,
+        y: player.position.y,
+        z: player.position.z,
+      });
+    }
+
     // Camera bám theo nhân vật.
     const controls = controlsRef.current;
 
@@ -264,6 +316,8 @@ export default function GameCanvas({
   direction,
   jumpSignal,
   fov,
+  onPosition,
+  otherPlayers = [],
 }: GameCanvasProps) {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
@@ -293,12 +347,22 @@ export default function GameCanvas({
         />
       ))}
 
+      {/* Nhân vật của người chơi hiện tại */}
       <Player
         direction={direction}
         jumpSignal={jumpSignal}
         blocks={blocks}
         controlsRef={controlsRef}
+        onPosition={onPosition}
       />
+
+      {/* Nhân vật của những người chơi khác */}
+      {otherPlayers.map((player) => (
+        <OtherPlayerMesh
+          key={player.id}
+          player={player}
+        />
+      ))}
 
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}
