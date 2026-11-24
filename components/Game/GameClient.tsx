@@ -43,6 +43,8 @@ export default function GameClient() {
   const [saves, setSaves] = useState<SaveItem[]>([]);
   const [message, setMessage] = useState("");
   const [fov, setFov] = useState(55);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [portrait, setPortrait] = useState(false);
 
   const [direction, setDirection] = useState({
     x: 0,
@@ -53,20 +55,65 @@ export default function GameClient() {
   const lastSaved = useRef("");
 
   const world = useMemo<WorldData>(
-    () => ({
-      version: 1,
-      blocks,
-    }),
+    () => ({ version: 1, blocks }),
     [blocks]
   );
+
+  // Landscape + fullscreen are requested after a user gesture.
+  const enterImmersive = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch {
+      // Fullscreen may be blocked by the browser.
+    }
+
+    try {
+      const orientation = screen.orientation as ScreenOrientation & {
+        lock?: (value: string) => Promise<void>;
+      };
+      await orientation.lock?.("landscape");
+    } catch {
+      // Some browsers only allow orientation lock in supported fullscreen contexts.
+    }
+
+    setFullscreen(Boolean(document.fullscreenElement));
+  }, []);
+
+  const exitImmersive = useCallback(async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch {
+      // Ignore browser fullscreen errors.
+    }
+  }, []);
+
+  useEffect(() => {
+    const updateDisplay = () => {
+      setFullscreen(Boolean(document.fullscreenElement));
+      setPortrait(
+        window.matchMedia("(orientation: portrait)").matches
+      );
+    };
+
+    updateDisplay();
+    window.addEventListener("resize", updateDisplay);
+    document.addEventListener("fullscreenchange", updateDisplay);
+
+    return () => {
+      window.removeEventListener("resize", updateDisplay);
+      document.removeEventListener("fullscreenchange", updateDisplay);
+    };
+  }, []);
 
   const save = useCallback(
     async (type: "manual" | "auto" | "exit" = "manual") => {
       const response = await fetch("/api/saves", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name:
             type === "manual"
@@ -120,22 +167,15 @@ export default function GameClient() {
             world,
           }),
         ],
-        {
-          type: "application/json",
-        }
+        { type: "application/json" }
       );
 
       navigator.sendBeacon("/api/saves", payload);
     }
 
     document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      document.removeEventListener(
-        "visibilitychange",
-        onVisibility
-      );
-    };
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibility);
   }, [world]);
 
   async function refreshSaves() {
@@ -162,7 +202,6 @@ export default function GameClient() {
     }
 
     const loadedWorld = data.save.world;
-
     setBlocks(loadedWorld.blocks);
     lastSaved.current = JSON.stringify(loadedWorld);
     setPanel("none");
@@ -173,67 +212,50 @@ export default function GameClient() {
     id: string,
     normal: [number, number, number]
   ) {
-    const selected = blocks.find(
-      (block) => block.id === id
-    );
-
+    const selected = blocks.find((block) => block.id === id);
     if (!selected) return;
 
     if (tool === "break") {
-      setBlocks((old) =>
-        old.filter((block) => block.id !== id)
-      );
+      setBlocks((old) => old.filter((block) => block.id !== id));
       return;
     }
 
     if (tool === "paint") {
       setBlocks((old) =>
         old.map((block) =>
-          block.id === id
-            ? { ...block, color: paint }
-            : block
+          block.id === id ? { ...block, color: paint } : block
         )
       );
       return;
     }
 
-    if (tool === "build") {
-      const x = selected.x + normal[0];
-      const y = selected.y + normal[1];
-      const z = selected.z + normal[2];
+    const x = selected.x + normal[0];
+    const y = selected.y + normal[1];
+    const z = selected.z + normal[2];
 
-      const occupied = blocks.some(
-        (block) =>
-          block.x === x &&
-          block.y === y &&
-          block.z === z
-      );
+    const occupied = blocks.some(
+      (block) => block.x === x && block.y === y && block.z === z
+    );
 
-      if (occupied) return;
+    if (occupied) return;
 
-      setBlocks((old) => [
-        ...old,
-        {
-          id: crypto.randomUUID(),
-          x,
-          y,
-          z,
-          color: paint,
-        },
-      ]);
-    }
+    setBlocks((old) => [
+      ...old,
+      {
+        id: crypto.randomUUID(),
+        x,
+        y,
+        z,
+        color: paint,
+      },
+    ]);
   }
 
-  function groundClick(
-    [x, y, z]: [number, number, number]
-  ) {
+  function groundClick([x, y, z]: [number, number, number]) {
     if (tool !== "build") return;
 
     const occupied = blocks.some(
-      (block) =>
-        block.x === x &&
-        block.y === y &&
-        block.z === z
+      (block) => block.x === x && block.y === y && block.z === z
     );
 
     if (occupied) return;
@@ -252,23 +274,14 @@ export default function GameClient() {
 
   function resetWorld() {
     if (!window.confirm("Reset this world?")) return;
-
     setBlocks(starterBlocks);
     setMessage("World reset");
     setPanel("none");
   }
 
   return (
-    <main className={styles.page}>
-      <header className={styles.top}>
-        <a href="/">← Build, Break, Paint!</a>
-        <span>{message}</span>
-        <button onClick={() => setPanel("menu")}>
-          ☰ Menu
-        </button>
-      </header>
-
-      <section className={styles.stage}>
+    <main className={styles.game}>
+      <div className={styles.gameViewport}>
         <GameCanvas
           blocks={blocks}
           onBlockClick={blockClick}
@@ -277,62 +290,114 @@ export default function GameClient() {
           jumpSignal={jumpSignal}
           fov={fov}
         />
+      </div>
 
-        <MobileControls
-          onMove={(x, z) => {
-            setDirection({ x, z });
-          }}
-          onJump={() => {
-            setJumpSignal((value) => value + 1);
-          }}
-        />
-      </section>
+      <header className={styles.hudTop}>
+        <a className={styles.brand} href="/" aria-label="Back to home">
+          <span className={styles.brandIcon}>▦</span>
+          <span className={styles.brandName}>BUILD<span>WORLD</span></span>
+        </a>
 
-      <nav className={styles.toolbar}>
-        {(["build", "break", "paint"] as Tool[]).map(
-          (item) => (
-            <button
-              key={item}
-              className={
-                tool === item ? styles.active : ""
-              }
-              onClick={() => setTool(item)}
-            >
-              {item.toUpperCase()}
-            </button>
-          )
-        )}
+        <div className={styles.topCenter}>
+          <span className={styles.worldBadge}>
+            <i /> WORLD
+          </span>
+          <span className={styles.status}>{message || "Ready to build"}</span>
+        </div>
 
-        <label className={styles.color}>
-          Color
+        <div className={styles.topActions}>
+          <button
+            className={styles.iconButton}
+            onClick={enterImmersive}
+            title="Fullscreen / Landscape"
+            aria-label="Fullscreen"
+          >
+            ⛶
+          </button>
+          <button
+            className={styles.menuButton}
+            onClick={() => setPanel("menu")}
+          >
+            <span>☰</span> MENU
+          </button>
+        </div>
+      </header>
+
+      <div className={styles.toolDock}>
+        <div className={styles.dockLabel}>TOOLS</div>
+
+        {(["build", "break", "paint"] as Tool[]).map((item) => (
+          <button
+            key={item}
+            className={`${styles.toolButton} ${
+              styles[item]
+            } ${tool === item ? styles.selected : ""}`}
+            onClick={() => setTool(item)}
+            aria-pressed={tool === item}
+          >
+            <span className={styles.toolIcon}>
+              {item === "build" ? "＋" : item === "break" ? "⌁" : "◉"}
+            </span>
+            <span>{item.toUpperCase()}</span>
+          </button>
+        ))}
+
+        <div className={styles.colorSlot}>
+          <span>COLOR</span>
           <input
             type="color"
             value={paint}
-            onChange={(event) =>
-              setPaint(event.target.value)
-            }
+            onChange={(event) => setPaint(event.target.value)}
+            aria-label="Block color"
           />
-        </label>
-      </nav>
+        </div>
+      </div>
+
+      <div className={styles.bottomHint}>
+        <span className={styles.keyHint}>WASD</span>
+        <span>MOVE</span>
+        <span className={styles.hintDivider}>•</span>
+        <span className={styles.keyHint}>SPACE</span>
+        <span>JUMP</span>
+      </div>
+
+      <MobileControls
+        onMove={(x, z) => setDirection({ x, z })}
+        onJump={() => setJumpSignal((value) => value + 1)}
+      />
+
+      {portrait && (
+        <div className={styles.rotateNotice}>
+          <div className={styles.rotateIcon}>↻</div>
+          <h2>ROTATE YOUR DEVICE</h2>
+          <p>BuildWorld is designed for landscape mode.</p>
+          <button onClick={enterImmersive}>TRY LANDSCAPE</button>
+        </div>
+      )}
 
       {panel !== "none" && (
-        <div className={styles.backdrop}>
-          <section className={styles.dialog}>
+        <div className={styles.modalBackdrop}>
+          <section className={styles.gamePanel}>
             <button
-              className={styles.close}
+              className={styles.panelClose}
               onClick={() => setPanel("none")}
+              aria-label="Close menu"
             >
               ×
             </button>
 
             {panel === "menu" && (
               <>
-                <h2>Game menu</h2>
+                <div className={styles.panelEyebrow}>BUILDWORLD</div>
+                <h2>GAME MENU</h2>
 
-                <button onClick={() => setPanel("save")}>
-                  Save
+                <button
+                  className={styles.panelPrimary}
+                  onClick={() => setPanel("none")}
+                >
+                  ▶ CONTINUE
                 </button>
-
+                <button onClick={() => setPanel("save")}>▣ SAVE WORLD</button>
                 <button
                   onClick={() => {
                     setPanel("load");
@@ -341,88 +406,56 @@ export default function GameClient() {
                     );
                   }}
                 >
-                  Load
+                  ▤ LOAD WORLD
                 </button>
-
-                <button onClick={resetWorld}>
-                  Reset
+                <button onClick={() => setPanel("camera")}>
+                  ◉ CAMERA SETTINGS
                 </button>
-
-                <button
-                  onClick={() => setPanel("camera")}
-                >
-                  Camera setting
-                </button>
-
-                <button onClick={() => setPanel("none")}>
-                  Continue
-                </button>
-
-                <a href="/">Title</a>
+                <button onClick={enterImmersive}>⛶ FULLSCREEN</button>
+                <button onClick={resetWorld}>↺ RESET WORLD</button>
+                <button onClick={exitImmersive}>EXIT FULLSCREEN</button>
               </>
             )}
 
             {panel === "save" && (
               <>
-                <h2>Save world</h2>
-
+                <div className={styles.panelEyebrow}>WORLD DATA</div>
+                <h2>SAVE WORLD</h2>
                 <input
                   value={saveName}
-                  onChange={(event) =>
-                    setSaveName(event.target.value)
-                  }
-                  placeholder="Save name"
+                  onChange={(event) => setSaveName(event.target.value)}
+                  placeholder="World name"
                 />
-
                 <button
+                  className={styles.panelPrimary}
                   onClick={() =>
                     save("manual")
                       .then(() => {
-                        setMessage("Saved");
+                        setMessage("World saved");
                         setPanel("none");
                       })
-                      .catch((error) =>
-                        setMessage(error.message)
-                      )
+                      .catch((error) => setMessage(error.message))
                   }
                 >
-                  Save
+                  SAVE
                 </button>
               </>
             )}
 
             {panel === "load" && (
               <>
-                <h2>Load world</h2>
-
-                {saves.length === 0 && (
-                  <p>No saves found.</p>
-                )}
-
+                <div className={styles.panelEyebrow}>WORLD DATA</div>
+                <h2>LOAD WORLD</h2>
+                {saves.length === 0 && <p className={styles.empty}>No saved worlds.</p>}
                 {saves.map((item) => (
-                  <div
-                    className={styles.saveRow}
-                    key={item.id}
-                  >
-                    <span>
-                      {item.name} · {item.type}
-                    </span>
-
-                    <button
-                      onClick={() => loadSave(item.id)}
-                    >
-                      Load
-                    </button>
-
+                  <div className={styles.saveItem} key={item.id}>
+                    <span>{item.name}</span>
+                    <button onClick={() => loadSave(item.id)}>LOAD</button>
                     <button
                       onClick={async () => {
-                        const response = await fetch(
-                          `/api/saves/${item.id}`,
-                          {
-                            method: "DELETE",
-                          }
-                        );
-
+                        const response = await fetch(`/api/saves/${item.id}`, {
+                          method: "DELETE",
+                        });
                         if (response.ok) {
                           await refreshSaves();
                           setMessage("Save deleted");
@@ -431,7 +464,7 @@ export default function GameClient() {
                         }
                       }}
                     >
-                      Delete
+                      DELETE
                     </button>
                   </div>
                 ))}
@@ -440,25 +473,19 @@ export default function GameClient() {
 
             {panel === "camera" && (
               <>
-                <h2>Camera setting</h2>
-
-                <label>
-                  Field of view: {fov}°
-
+                <div className={styles.panelEyebrow}>VIEW SETTINGS</div>
+                <h2>CAMERA</h2>
+                <label className={styles.cameraSetting}>
+                  FIELD OF VIEW <strong>{fov}°</strong>
                   <input
                     type="range"
                     min="45"
                     max="110"
                     value={fov}
-                    onChange={(event) =>
-                      setFov(Number(event.target.value))
-                    }
+                    onChange={(event) => setFov(Number(event.target.value))}
                   />
                 </label>
-
-                <p>
-                  Drag to rotate and scroll to zoom.
-                </p>
+                <p className={styles.empty}>Drag to rotate. Pinch or scroll to zoom.</p>
               </>
             )}
           </section>
