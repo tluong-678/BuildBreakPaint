@@ -1,59 +1,160 @@
+
 # Build, Break, Paint!
 
-Full Next.js starter project containing the start screen, username/password and Google authentication routes, 3D block sandbox, save/load/autosave APIs, and realtime multiplayer room presence/chat.
+A browser-based 3D sandbox game where you can build, break, and paint blocks.
 
-## 1. Requirements
+Official website: https://buildbreakpaint.netlify.app
+
+> This project is an independent game project. You may use it as a reference, but please make your own changes and improvements.
+
+## Features
+
+- 3D block sandbox
+- Build, Break, and Paint tools
+- Custom block colors
+- Save and load worlds
+- Automatic world saving
+- Multiplayer public world
+- Shared block editing
+- Player movement synchronization
+- Realtime multiplayer chat
+- Mobile joystick and jump button
+- Keyboard controls for desktop
+- English, Vietnamese, and Chinese language support
+
+## Controls
+
+### Computer
+
+| Key | Action |
+|---|---|
+| W / ↑ | Move forward |
+| A / ← | Move left |
+| S / ↓ | Move backward |
+| D / → | Move right |
+| Space | Jump |
+| Mouse | Look around and interact |
+
+### Mobile
+
+- Use the joystick to move.
+- Press the jump button to jump.
+- Tap blocks to interact with them.
+
+## Requirements
+
 - Node.js 20.9 or newer
+- npm
 - A Supabase project
-- Google OAuth credentials if you want Google sign-in
 
-## 2. Install
-Open a terminal in this folder and run:
+Google OAuth credentials are optional.
+
+## Installation
+
+Clone the repository:
+
+```bash
+git clone https://github.com/tluong-678/BuildBreakPaint.git
+```
+
+Open the project folder:
+
+```bash
+cd BuildBreakPaint
+```
+
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-## 3. Configure Supabase
+## Supabase Setup
+
 1. Create a project at https://supabase.com.
 2. Copy `.env.example` to `.env.local`.
-3. Fill in `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from Supabase Project Settings > API.
-4. In Supabase SQL Editor, run all of `supabase/schema.sql`.
-5. In Authentication > Providers, enable Google and configure its Client ID and Client Secret if Google login is needed.
-6. In Authentication > URL Configuration, set the Site URL to your app URL and add redirect URLs:
-   - `http://localhost:3000/auth/callback`
-   - Your production domain followed by `/auth/callback`
-7. For username/password accounts in this starter, turn off email confirmation in Supabase Authentication settings.; users should sign in with the username, not an email address.
+3. Add your Supabase project URL and public key.
+4. Open the Supabase SQL Editor.
+5. Run the SQL from `supabase/schema.sql`.
 
-Do not expose a Supabase service-role key in browser code. This project uses the public anon/publishable key and Row Level Security.
+Example environment variables:
 
-## 4. Run
+```env
+NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+```
+
+Never put your Supabase service-role key in browser code.
+
+## Run the Game
+
+Start the development server:
+
 ```bash
 npm run dev
 ```
-Open http://localhost:3000.
 
-For a production build:
+Open:
+
+http://localhost:3000
+
+## Production Build
+
+Build the project:
+
 ```bash
 npm run build
+```
+
+Start the production server:
+
+```bash
 npm run start
 ```
 
-## 5. Current feature scope
-- Start screen and login/register modal.
-- Google OAuth redirect route (requires provider setup).
-- 3D scene with basic Build, Break and Paint tools.
-- Orbit camera controls.
-- Manual save, load, delete and periodic 30-second autosave.
-- Best-effort save when the page becomes hidden.
-- Supabase Realtime room presence and broadcast chat.
+## Deployment
 
-## 6. Important limitations
-- Multiplayer currently shares online presence and chat only. Player movement and block/world editing are not synchronized between clients yet.
-- Browser shutdown, a crash, or power loss can prevent the visibility-change save from running. The 30-second autosave reduces, but cannot eliminate, potential data loss.
-- Autosave currently creates a new save record each time it runs. A retention/cleanup policy should be added before production.
-- The simple profanity filter is client-side only and is not a security or moderation system.
-- This is a runnable starter project, not a production-hardened public game. Add server-side rate limits, moderation, validation, and abuse protection before opening it to everyone.
-*This is a supabase to login or sign in project and this is a file to make a web, you can copy but make it different!*
-***official web: "https://buildbreakpaint.netlify.app"***
-  As since, official web can't sign in with google and sign up with google!
+The official website is hosted at:
+
+https://buildbreakpaint.netlify.app
+
+You can deploy your own copy using Netlify or another platform that supports Next.js.
+
+Configure the required environment variables in your hosting platform before deployment.
+
+## Languages
+
+The game supports:
+
+- English
+- Vietnamese
+- Chinese
+
+Language settings are managed by the project's language system.
+
+## Authentication
+
+The project includes authentication features such as:
+
+- Username and password
+- Google sign-in, when configured
+
+Google authentication may require additional Supabase and Google Cloud configuration.
+
+## Project
+
+GitHub repository:
+
+https://github.com/tluong-678/BuildBreakPaint
+
+Official website:
+
+finding LOL
+
+## Disclaimer
+
+This project is a work in progress.
+
+Some features may be incomplete or require additional configuration.
+
+Please report bugs and contribute improvements through the GitHub repository.
