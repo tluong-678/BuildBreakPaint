@@ -34,6 +34,8 @@ type PlayerState = {
   z: number;
 };
 
+type TranslationLanguage = "en" | "vi" | "zh";
+
 const ROOM = "public-lobby";
 
 const starterBlocks: BlockData[] = [
@@ -51,14 +53,24 @@ export default function MultiplayerClient() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [connection, setConnection] = useState("Connecting…");
+
   const [tool, setTool] = useState<Tool>("build");
   const [paint, setPaint] = useState("#ff4d6d");
   const [direction, setDirection] = useState({ x: 0, z: 0 });
   const [jumpSignal, setJumpSignal] = useState(0);
 
+  const [autoTranslate, setAutoTranslate] = useState(false);
+  const [translationLanguage, setTranslationLanguage] =
+    useState<TranslationLanguage>("vi");
+  const [translatedMessages, setTranslatedMessages] =
+    useState<Record<string, string>>({});
+  const [translationErrors, setTranslationErrors] =
+    useState<Record<string, boolean>>({});
+
   const channelRef = useRef<RealtimeChannel | null>(null);
   const playerIdRef = useRef("");
   const blocksRef = useRef(blocks);
+  const playtimeSecondsRef = useRef(0);
 
   useEffect(() => {
     blocksRef.current = blocks;
@@ -81,7 +93,7 @@ export default function MultiplayerClient() {
       .catch(() => {});
   }, []);
 
-  // Tải bản đồ chung.
+  // Tải bản đồ chung từ server.
   useEffect(() => {
     let cancelled = false;
 
@@ -94,6 +106,7 @@ export default function MultiplayerClient() {
           Array.isArray(data.world.blocks)
         ) {
           setBlocks(data.world.blocks);
+          blocksRef.current = data.world.blocks;
         }
       })
       .catch(() => {
@@ -105,7 +118,7 @@ export default function MultiplayerClient() {
     };
   }, []);
 
-  // Realtime: người chơi, chat, bản đồ.
+  // Realtime presence, chat, block map, player movement.
   useEffect(() => {
     let supabase;
 
@@ -157,6 +170,8 @@ export default function MultiplayerClient() {
 
     channel.on("broadcast", { event: "chat" }, ({ payload }) => {
       const incoming = payload as ChatMessage;
+
+      if (!incoming?.id || !incoming.text) return;
 
       setMessages((old) => {
         if (old.some((item) => item.id === incoming.id)) {
@@ -252,7 +267,7 @@ export default function MultiplayerClient() {
         payload: world,
       });
 
-      await fetch("/api/multiplayer/world", {
+      const response = await fetch("/api/multiplayer/world", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -262,6 +277,10 @@ export default function MultiplayerClient() {
           world,
         }),
       });
+
+      if (!response.ok) {
+        setConnection("World save failed");
+      }
     },
     []
   );
@@ -307,14 +326,16 @@ export default function MultiplayerClient() {
     const y = selected.y + normal[1];
     const z = selected.z + normal[2];
 
-    const occupied = blocksRef.current.some(
-      (block) =>
-        block.x === x &&
-        block.y === y &&
-        block.z === z
-    );
-
-    if (occupied) return;
+    if (
+      blocksRef.current.some(
+        (block) =>
+          block.x === x &&
+          block.y === y &&
+          block.z === z
+      )
+    ) {
+      return;
+    }
 
     updateBlocks([
       ...blocksRef.current,
@@ -331,14 +352,16 @@ export default function MultiplayerClient() {
   function groundClick([x, y, z]: [number, number, number]) {
     if (tool !== "build") return;
 
-    const occupied = blocksRef.current.some(
-      (block) =>
-        block.x === x &&
-        block.y === y &&
-        block.z === z
-    );
-
-    if (occupied) return;
+    if (
+      blocksRef.current.some(
+        (block) =>
+          block.x === x &&
+          block.y === y &&
+          block.z === z
+      )
+    ) {
+      return;
+    }
 
     updateBlocks([
       ...blocksRef.current,
@@ -352,6 +375,7 @@ export default function MultiplayerClient() {
     ]);
   }
 
+  // Chat: gửi nguyên văn; bản dịch chỉ hiển thị riêng ở máy người nhận.
   async function sendChat() {
     const text = draft.trim().slice(0, 250);
 
@@ -369,9 +393,7 @@ export default function MultiplayerClient() {
       sentAt: new Date().toISOString(),
     };
 
-    setMessages((old) =>
-      [...old, message].slice(-100)
-    );
+    setMessages((old) => [...old, message].slice(-100));
 
     await channelRef.current.send({
       type: "broadcast",
@@ -381,6 +403,90 @@ export default function MultiplayerClient() {
 
     setDraft("");
   }
+
+  // Tự dịch tin nhắn mới khi bật Auto Translate.
+  useEffect(() => {
+    if (!autoTranslate) return;
+
+    let cancelled = false;
+
+    async function translatePending() {
+      for (const message of messages) {
+        if (
+          translatedMessages[message.id] ||
+          translationErrors[message.id]
+        ) {
+          continue;
+        }
+
+        try {
+          const response = await fetch("/api/translate", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              text: message.text,
+              target: translationLanguage,
+              source: "auto",
+            }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok || !data.translatedText) {
+            throw new Error("Translation failed");
+          }
+
+          if (!cancelled) {
+            setTranslatedMessages((old) => ({
+              ...old,
+              [message.id]: data.translatedText,
+            }));
+          }
+        } catch {
+          if (!cancelled) {
+            setTranslationErrors((old) => ({
+              ...old,
+              [message.id]: true,
+            }));
+          }
+        }
+      }
+    }
+
+    void translatePending();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    autoTranslate,
+    messages,
+    translationLanguage,
+    translatedMessages,
+    translationErrors,
+  ]);
+
+  // Ghi nhận thời gian chơi theo từng phút.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      playtimeSecondsRef.current += 60;
+
+      void fetch("/api/leaderboard", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          seconds: 60,
+          username,
+        }),
+      }).catch(() => {});
+    }, 60000);
+
+    return () => window.clearInterval(timer);
+  }, [username]);
 
   const connectionText =
     connection === "SUBSCRIBED"
@@ -407,15 +513,12 @@ export default function MultiplayerClient() {
           fov={55}
           onPosition={sendPlayerPosition}
           otherPlayers={players}
+          username={username}
         />
 
         <MobileControls
-          onMove={(x, z) => {
-            setDirection({ x, z });
-          }}
-          onJump={() => {
-            setJumpSignal((value) => value + 1);
-          }}
+          onMove={(x, z) => setDirection({ x, z })}
+          onJump={() => setJumpSignal((value) => value + 1)}
         />
       </section>
 
@@ -456,19 +559,48 @@ export default function MultiplayerClient() {
           <p>🟢 {username} ({t("you")})</p>
 
           {players.map((player) => (
-            <p key={player.id}>
-              🟢 {player.username}
-            </p>
+            <p key={player.id}>🟢 {player.username}</p>
           ))}
         </div>
 
         <div className={styles.chatCard}>
           <h2>{t("liveChat")}</h2>
 
+          <div className={styles.translationControls}>
+            <label>
+              <input
+                type="checkbox"
+                checked={autoTranslate}
+                onChange={(event) =>
+                  setAutoTranslate(event.target.checked)
+                }
+              />
+              Auto translate
+            </label>
+
+            <select
+              value={translationLanguage}
+              onChange={(event) =>
+                setTranslationLanguage(
+                  event.target.value as TranslationLanguage
+                )
+              }
+              aria-label="Translation language"
+            >
+              <option value="en">English</option>
+              <option value="vi">Tiếng Việt</option>
+              <option value="zh">中文</option>
+            </select>
+          </div>
+
           <div className={styles.chatMessages}>
             {messages.map((message) => (
               <p key={message.id}>
-                <b>{message.username}:</b> {message.text}
+                <b>{message.username}:</b>{" "}
+                {autoTranslate
+                  ? translatedMessages[message.id] ??
+                    `${message.text} (translating…)`
+                  : message.text}
               </p>
             ))}
           </div>
