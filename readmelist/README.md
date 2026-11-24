@@ -10,7 +10,7 @@ A 3D sandbox game where you can build, break, and paint blocks.
 </p>
 
 <p align="center">
-  <a href="https://google.com/">
+  <a href="https://buildbreakpaintr.up.railway.app/">
     <strong>🎮 Play Build, Break, Paint!</strong>
   </a>
 </p>
@@ -99,7 +99,7 @@ npm run start
 
 ## 🌐 Official Website
 
-finding LOL
+[Website](https://buildbreakpaintr.up.railway.app)
 
 ## 📁 GitHub Repository
 
