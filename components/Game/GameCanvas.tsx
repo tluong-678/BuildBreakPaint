@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -10,7 +9,10 @@ import type { BlockData } from "./types";
 
 type GameCanvasProps = {
   blocks: BlockData[];
-  onBlockClick: (id: string, normal: [number, number, number]) => void;
+  onBlockClick: (
+    id: string,
+    normal: [number, number, number]
+  ) => void;
   onGroundClick: (point: [number, number, number]) => void;
   direction: { x: number; z: number };
   jumpSignal: number;
@@ -22,7 +24,10 @@ function Block({
   onClick,
 }: {
   block: BlockData;
-  onClick: (id: string, normal: [number, number, number]) => void;
+  onClick: (
+    id: string,
+    normal: [number, number, number]
+  ) => void;
 }) {
   return (
     <mesh
@@ -39,7 +44,11 @@ function Block({
               .round()
           : new THREE.Vector3(0, 1, 0);
 
-        onClick(block.id, [normal.x, normal.y, normal.z]);
+        onClick(block.id, [
+          normal.x,
+          normal.y,
+          normal.z,
+        ]);
       }}
     >
       <boxGeometry args={[1, 1, 1]} />
@@ -76,14 +85,19 @@ function Player({
     function keyDown(event: KeyboardEvent) {
       const key = event.key.toLowerCase();
 
-      if (
-        [
-          "w", "a", "s", "d",
-          "arrowup", "arrowdown",
-          "arrowleft", "arrowright",
-          " "
-        ].includes(key)
-      ) {
+      const movementKeys = [
+        "w",
+        "a",
+        "s",
+        "d",
+        "arrowup",
+        "arrowdown",
+        "arrowleft",
+        "arrowright",
+        " ",
+      ];
+
+      if (movementKeys.includes(key)) {
         event.preventDefault();
       }
 
@@ -122,56 +136,78 @@ function Player({
     let moveX = direction.x;
     let moveZ = direction.z;
 
-    if (keys.current.a || keys.current.arrowleft) moveX -= 1;
-    if (keys.current.d || keys.current.arrowright) moveX += 1;
-    if (keys.current.w || keys.current.arrowup) moveZ -= 1;
-    if (keys.current.s || keys.current.arrowdown) moveZ += 1;
+    if (keys.current.a || keys.current.arrowleft) {
+      moveX -= 1;
+    }
+
+    if (keys.current.d || keys.current.arrowright) {
+      moveX += 1;
+    }
+
+    if (keys.current.w || keys.current.arrowup) {
+      moveZ -= 1;
+    }
+
+    if (keys.current.s || keys.current.arrowdown) {
+      moveZ += 1;
+    }
 
     const length = Math.hypot(moveX, moveZ);
+
     if (length > 1) {
       moveX /= length;
       moveZ /= length;
     }
 
+    // Di chuyển ngang.
     player.position.x += moveX * speed * dt;
     player.position.z += moveZ * speed * dt;
 
-    // Chỉ nhảy khi có lần bấm mới và đang đứng trên mặt đất.
+    // Nhận tín hiệu nhảy từ nút trên màn hình.
     if (jumpSignal !== lastJump.current) {
       jumpRequested.current = true;
+      lastJump.current = jumpSignal;
     }
-    lastJump.current = jumpSignal;
 
     if (jumpRequested.current && grounded.current) {
       velocityY.current = jumpPower;
       grounded.current = false;
     }
+
     jumpRequested.current = false;
 
     const previousY = player.position.y;
+
     velocityY.current -= gravity * dt;
     player.position.y += velocityY.current * dt;
     grounded.current = false;
 
     // Mặt đất.
     const floorPlayerY = groundTop + playerHeight / 2;
-    if (player.position.y <= floorPlayerY && velocityY.current <= 0) {
+
+    if (
+      player.position.y <= floorPlayerY &&
+      velocityY.current <= 0
+    ) {
       player.position.y = floorPlayerY;
       velocityY.current = 0;
       grounded.current = true;
     }
 
-    // Chỉ xử lý hạ cánh từ phía trên khối.
+    // Hạ cánh trên các khối.
     if (velocityY.current <= 0) {
       for (const block of blocks) {
         const insideX =
           Math.abs(player.position.x - block.x) < 0.48;
+
         const insideZ =
           Math.abs(player.position.z - block.z) < 0.48;
 
         const top = block.y + 0.5;
-        const playerBottom = player.position.y - playerHeight / 2;
-        const previousBottom = previousY - playerHeight / 2;
+        const playerBottom =
+          player.position.y - playerHeight / 2;
+        const previousBottom =
+          previousY - playerHeight / 2;
 
         if (
           insideX &&
@@ -186,15 +222,16 @@ function Player({
       }
     }
 
-    // Rơi khỏi map: hồi sinh tại điểm xuất phát.
+    // Rơi khỏi bản đồ thì hồi sinh.
     if (player.position.y < -15) {
       player.position.set(3, 1, 3);
       velocityY.current = 0;
       grounded.current = false;
     }
 
-    // Camera theo nhân vật, vẫn giữ khả năng xoay bằng OrbitControls.
+    // Camera bám theo nhân vật.
     const controls = controlsRef.current;
+
     if (controls) {
       const target = new THREE.Vector3(
         player.position.x,
@@ -203,8 +240,11 @@ function Player({
       );
 
       const shift = target.clone().sub(controls.target);
-      controls.target.lerp(target, Math.min(1, dt * 5));
-      camera.position.add(shift.multiplyScalar(Math.min(1, dt * 5)));
+      const smooth = Math.min(1, dt * 5);
+
+      controls.target.lerp(target, smooth);
+      camera.position.add(shift.multiplyScalar(smooth));
+
       controls.update();
     }
   });
@@ -236,7 +276,9 @@ export default function GameCanvas({
       }}
     >
       <color attach="background" args={["#b9dcf5"]} />
+
       <ambientLight intensity={0.75} />
+
       <directionalLight
         position={[8, 12, 5]}
         intensity={1.4}
@@ -264,6 +306,7 @@ export default function GameCanvas({
         receiveShadow
         onClick={(event) => {
           event.stopPropagation();
+
           onGroundClick([
             Math.round(event.point.x),
             0,
