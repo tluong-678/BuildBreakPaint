@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://google.com/">
+  <a href="https://buildbreakpaintr.up.railway.app/">
     <strong>🎮 开始游戏</strong>
   </a>
 </p>
@@ -99,7 +99,7 @@ npm run start
 
 ## 🌐 官方网站
 
-nope
+[Website](https://buildbreakpaintr.up.railway.app)
 
 ## 📁 GitHub 仓库
 
