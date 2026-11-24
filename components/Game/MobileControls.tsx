@@ -1,78 +1,129 @@
 
 "use client";
 
-import { useRef, useState } from "react";
-import styles from "./Game.module.css";
+import { useCallback, useRef, useState } from "react";
 
-type Props = {
+type MobileControlsProps = {
   onMove: (x: number, z: number) => void;
   onJump: () => void;
 };
 
+const JOYSTICK_RADIUS = 45;
+const MAX_DISTANCE = 34;
+const DEAD_ZONE = 0.12;
+
 export default function MobileControls({
   onMove,
   onJump,
-}: Props) {
+}: MobileControlsProps) {
   const joystickRef = useRef<HTMLDivElement>(null);
-  const pointerRef = useRef<number | null>(null);
+  const pointerIdRef = useRef<number | null>(null);
+
   const [knob, setKnob] = useState({ x: 0, y: 0 });
+  const [active, setActive] = useState(false);
 
-  const radius = 45;
-
-  function updateJoystick(e: React.PointerEvent) {
-    const joystick = joystickRef.current;
-    if (!joystick) return;
-
-    const rect = joystick.getBoundingClientRect();
-
-    const centerX = rect.left + rect.width / 2;
-    const centerY = rect.top + rect.height / 2;
-
-    let x = e.clientX - centerX;
-    let y = e.clientY - centerY;
-
-    const distance = Math.sqrt(x * x + y * y);
-
-    if (distance > radius) {
-      x = (x / distance) * radius;
-      y = (y / distance) * radius;
-    }
-
-    setKnob({ x, y });
-
-    onMove(
-      x / radius,
-      y / radius
-    );
-  }
-
-  function stopJoystick() {
-    pointerRef.current = null;
+  const resetJoystick = useCallback(() => {
+    pointerIdRef.current = null;
     setKnob({ x: 0, y: 0 });
+    setActive(false);
     onMove(0, 0);
-  }
+  }, [onMove]);
+
+  const updateJoystick = useCallback(
+    (clientX: number, clientY: number) => {
+      const joystick = joystickRef.current;
+      if (!joystick) return;
+
+      const rect = joystick.getBoundingClientRect();
+
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+
+      let dx = clientX - centerX;
+      let dy = clientY - centerY;
+
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance > MAX_DISTANCE) {
+        const scale = MAX_DISTANCE / distance;
+        dx *= scale;
+        dy *= scale;
+      }
+
+      setKnob({ x: dx, y: dy });
+
+      let x = dx / MAX_DISTANCE;
+      let z = dy / MAX_DISTANCE;
+
+      if (Math.abs(x) < DEAD_ZONE) x = 0;
+      if (Math.abs(z) < DEAD_ZONE) z = 0;
+
+      onMove(x, z);
+    },
+    [onMove],
+  );
+
+  const handlePointerDown = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (pointerIdRef.current !== null) return;
+
+      event.preventDefault();
+
+      pointerIdRef.current = event.pointerId;
+      setActive(true);
+
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      updateJoystick(event.clientX, event.clientY);
+    },
+    [updateJoystick],
+  );
+
+  const handlePointerMove = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (pointerIdRef.current !== event.pointerId) return;
+
+      event.preventDefault();
+      updateJoystick(event.clientX, event.clientY);
+    },
+    [updateJoystick],
+  );
+
+  const handlePointerUp = useCallback(
+    (event: React.PointerEvent<HTMLDivElement>) => {
+      if (pointerIdRef.current !== event.pointerId) return;
+
+      event.preventDefault();
+      resetJoystick();
+    },
+    [resetJoystick],
+  );
+
+  const handleJump = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      onJump();
+    },
+    [onJump],
+  );
 
   return (
-    <div className={styles.mobileControls}>
+    <div className="mobileControls">
       <div
         ref={joystickRef}
-        className={styles.joystick}
-        onPointerDown={(e) => {
-          pointerRef.current = e.pointerId;
-          e.currentTarget.setPointerCapture(e.pointerId);
-          updateJoystick(e);
+        className={`joystick ${active ? "joystickActive" : ""}`}
+        style={{
+          width: JOYSTICK_RADIUS * 2,
+          height: JOYSTICK_RADIUS * 2,
         }}
-        onPointerMove={(e) => {
-          if (pointerRef.current === e.pointerId) {
-            updateJoystick(e);
-          }
-        }}
-        onPointerUp={stopJoystick}
-        onPointerCancel={stopJoystick}
-        onLostPointerCapture={stopJoystick}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onLostPointerCapture={resetJoystick}
       >
         <div
-          className={styles.joystickKnob}
+          className="joystickKnob"
           style={{
             transform: `translate(${knob.x}px, ${knob.y}px)`,
           }}
@@ -80,14 +131,13 @@ export default function MobileControls({
       </div>
 
       <button
-        className={styles.jumpButton}
-        onPointerDown={(e) => {
-          e.preventDefault();
-          onJump();
-        }}
+        type="button"
+        className="jumpButton"
+        onPointerDown={handleJump}
+        aria-label="Nhảy"
       >
         JUMP
       </button>
     </div>
   );
-          }
+}
