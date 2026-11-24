@@ -1,209 +1,454 @@
+
+/* =========================================
+   BUILD, BREAK, PAINT
+   Pixel Sandbox / Arcade UI
+========================================= */
+
 .page,
 .multiPage {
-  height: 100dvh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  background: #101827;
-  color: #f8fafc;
-  font-family: Arial, sans-serif;
+  color: #f2f7ff;
+  font-family: "Pixelify Sans", system-ui, sans-serif;
+  background:
+    radial-gradient(ellipse at 50% -20%, #244574 0%, transparent 65%),
+    #080d1b;
 }
 
-/* Header */
+/* =========================================
+   TOP HUD
+========================================= */
 
 .top {
-  min-height: 58px;
+  position: relative;
+  z-index: 5;
+  min-height: 66px;
   flex: none;
+
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 8px 18px;
-  background: #172338;
+  gap: 14px;
+
+  padding: 12px 20px;
+
+  background: linear-gradient(180deg, #172844, #101b30);
+  border-bottom: 3px solid #35577f;
+
+  box-shadow:
+    0 4px 0 #070b15,
+    0 8px 24px #0005;
 }
 
 .top a {
-  color: #a9d7ff;
-  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+
+  color: #78d7ff;
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(8px, 1.3vw, 12px);
+  line-height: 1.8;
+
+  text-shadow: 2px 2px 0 #15304c;
+}
+
+.top span {
+  color: #a9c2e1;
+  font-size: 15px;
+  text-align: center;
 }
 
 .top button,
 .toolbar button,
 .dialog button,
 .chatInput button {
-  border: 0;
-  border-radius: 9px;
-  padding: 10px 15px;
-  background: #2869a8;
-  color: white;
-  cursor: pointer;
+  position: relative;
+
+  border: 2px solid #5d83b1;
+  border-radius: 4px;
+
+  padding: 10px 16px;
+
+  background: linear-gradient(180deg, #2a4a75, #1b3152);
+  color: #f4f8ff;
+
+  font-family: "Pixelify Sans", sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+
+  box-shadow:
+    0 4px 0 #0a1425,
+    inset 0 1px 0 #ffffff20;
+
+  transition:
+    transform 100ms ease,
+    filter 100ms ease,
+    background 100ms ease;
 }
 
-/* Game stage */
+.top button:hover,
+.toolbar button:hover,
+.dialog button:hover,
+.chatInput button:hover {
+  filter: brightness(1.2);
+  transform: translateY(-2px);
+}
+
+.top button:active,
+.toolbar button:active,
+.dialog button:active,
+.chatInput button:active {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 #0a1425,
+    inset 0 1px 0 #ffffff20;
+}
+
+/* =========================================
+   3D GAME VIEW
+========================================= */
 
 .stage {
   position: relative;
   flex: 1;
-  min-height: 0;
+  min-height: 260px;
   overflow: hidden;
   isolation: isolate;
+
+  background:
+    linear-gradient(#14243b33, #080d1b22);
 }
 
 .stage canvas {
   display: block;
   width: 100%;
   height: 100%;
-  touch-action: none;
+
   outline: none;
+  touch-action: none;
 }
 
-/* Toolbar */
+/* =========================================
+   TOOLBAR / INVENTORY
+========================================= */
 
 .toolbar {
+  position: relative;
+  z-index: 4;
+
   flex: none;
+
   display: flex;
   justify-content: center;
   align-items: center;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 12px;
-  background: #172338;
-  z-index: 2;
+
+  padding: 15px 18px;
+
+  background: linear-gradient(180deg, #172844, #0d1729);
+  border-top: 3px solid #35577f;
+
+  box-shadow:
+    0 -4px 0 #070b15,
+    0 -10px 24px #0004;
 }
 
 .toolbar button {
-  background: #334155;
+  min-width: 100px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
+
+/* BUILD */
+
+.toolbar button:nth-child(1) {
+  border-color: #6bdba5;
+  background: linear-gradient(180deg, #247a60, #15533f);
+}
+
+/* BREAK */
+
+.toolbar button:nth-child(2) {
+  border-color: #ff8585;
+  background: linear-gradient(180deg, #9a3949, #652532);
+}
+
+/* PAINT */
+
+.toolbar button:nth-child(3) {
+  border-color: #9f9bff;
+  background: linear-gradient(180deg, #6658b9, #40357e);
+}
+
+/* Selected tool */
 
 .toolbar .active {
-  background: #e18a2e;
-  color: #111827;
+  color: #101522 !important;
+  background: linear-gradient(180deg, #ffe17a, #ffad37) !important;
+  border-color: #fff0ad !important;
+
+  box-shadow:
+    0 4px 0 #9a5c1b,
+    0 0 18px #ffbd4b55,
+    inset 0 1px 0 #ffffff80;
+
+  transform: translateY(-2px);
 }
 
+/* Color picker */
+
 .color {
-  display: flex;
-  gap: 8px;
+  display: inline-flex;
   align-items: center;
+  gap: 9px;
+
+  padding: 7px 12px;
+
+  border: 2px solid #45678f;
+  border-radius: 4px;
+
+  background: #101b30;
+  color: #c9ddf6;
+
+  font-family: "Press Start 2P", monospace;
+  font-size: 8px;
+  line-height: 1.8;
 }
 
 .color input {
   width: 42px;
-  height: 32px;
-  border: 0;
-  background: none;
+  height: 34px;
+  padding: 2px;
+
+  border: 2px solid #6b8eb7;
+  border-radius: 3px;
+
+  background: #172844;
+  cursor: pointer;
 }
 
-/* Dialog */
+/* =========================================
+   GAME MENU
+========================================= */
 
 .backdrop {
   position: fixed;
   inset: 0;
-  background: #0009;
+  z-index: 30;
+
   display: grid;
   place-items: center;
-  z-index: 30;
+
+  padding: 16px;
+
+  background: #030713cc;
+  backdrop-filter: blur(5px);
 }
 
 .dialog {
   position: relative;
-  width: min(92vw, 440px);
-  max-height: 80vh;
+
+  width: min(92vw, 480px);
+  max-height: 85dvh;
   overflow: auto;
-  background: #1d2b40;
-  border: 1px solid #48617e;
-  border-radius: 18px;
-  padding: 24px;
+
+  padding: 28px 24px 24px;
+
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+
+  background:
+    linear-gradient(145deg, #1b2d4b, #101a2d);
+
+  border: 3px solid #5c83b4;
+  border-radius: 5px;
+
+  box-shadow:
+    0 0 0 4px #080d1b,
+    0 0 0 7px #243b5d,
+    0 18px 50px #000a;
 }
 
 .dialog h2 {
-  margin: 0 0 8px;
+  margin: 0 36px 10px 0;
+
+  color: #ffca65;
+  font-family: "Press Start 2P", monospace;
+  font-size: clamp(11px, 3vw, 15px);
+  line-height: 2;
+
+  text-shadow: 3px 3px 0 #6c3f22;
 }
 
-.dialog input:not([type="range"]) {
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #64748b;
-  background: #0f172a;
-  color: white;
+.dialog p {
+  color: #b7cbe5;
+  font-size: 16px;
+  line-height: 1.6;
 }
 
-.dialog input[type="range"] {
+.dialog button {
   width: 100%;
+  text-align: left;
+}
+
+.dialog button:hover {
+  border-color: #8bdcff;
+  background: linear-gradient(180deg, #315985, #203d63);
+}
+
+.dialog a {
+  display: block;
+  padding: 10px 0;
+
+  color: #70d4ff;
+  text-align: center;
+  font-weight: 700;
 }
 
 .close {
   position: absolute;
-  right: 14px;
-  top: 14px;
-  padding: 6px 10px !important;
+  top: 12px;
+  right: 12px;
+
+  width: auto !important;
+  padding: 5px 12px !important;
+
+  color: #fff !important;
+  background: #8d3547 !important;
+  border-color: #ff8a9b !important;
+
+  font-size: 22px !important;
+  text-align: center !important;
 }
+
+.dialog input:not([type="range"]) {
+  width: 100%;
+  padding: 12px;
+
+  border: 2px solid #496c96;
+  border-radius: 4px;
+
+  background: #081222;
+  color: #f2f7ff;
+
+  font-size: 17px;
+}
+
+.dialog input::placeholder {
+  color: #7189a9;
+}
+
+.dialog input[type="range"] {
+  width: 100%;
+  accent-color: #ffb13b;
+}
+
+/* Saved worlds */
 
 .saveRow {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px;
-  background: #263850;
-  border-radius: 8px;
+  gap: 8px;
+
+  padding: 10px;
+
+  background: #0d192c;
+  border: 2px solid #2e496b;
+  border-radius: 4px;
 }
 
 .saveRow span {
   flex: 1;
+  min-width: 100px;
+
+  color: #dceaff;
   overflow-wrap: anywhere;
 }
 
-/* Multiplayer */
+.saveRow button {
+  width: auto;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+/* =========================================
+   MULTIPLAYER PAGE
+========================================= */
 
 .multiPage {
-  height: auto;
   min-height: 100dvh;
+  height: auto;
 }
 
 .multiPage .top {
-  height: auto;
-  min-height: 64px;
+  min-height: 70px;
 }
 
 .multiGrid {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(300px, 2fr);
-  gap: 18px;
-  padding: 22px;
-  max-width: 1100px;
+  gap: 20px;
+
   width: 100%;
+  max-width: 1180px;
+
   margin: auto;
+  padding: 24px;
 }
 
 .roomCard,
 .chatCard {
-  background: #1d2b40;
-  border: 1px solid #344b66;
-  border-radius: 16px;
-  padding: 18px;
+  padding: 20px;
+
+  background: linear-gradient(145deg, #1b2d4b, #101a2d);
+
+  border: 2px solid #385b85;
+  border-radius: 5px;
+
+  box-shadow:
+    0 5px 0 #070b15,
+    0 12px 25px #0004;
+}
+
+.roomCard h2,
+.chatCard h2 {
+  color: #ffca65;
+  font-family: "Press Start 2P", monospace;
+  font-size: 11px;
+  line-height: 2;
 }
 
 .roomCard input,
 .chatInput input {
   width: 100%;
   padding: 12px;
-  border: 1px solid #60758d;
-  border-radius: 8px;
-  background: #101827;
+
+  border: 2px solid #496c96;
+  border-radius: 4px;
+
+  background: #081222;
   color: white;
 }
 
 .chatMessages {
   height: 360px;
   overflow: auto;
-  background: #101827;
-  border-radius: 10px;
-  padding: 12px;
+
+  padding: 14px;
+
+  background: #081222;
+  border: 2px solid #2e496b;
+  border-radius: 4px;
 }
 
 .chatMessages p {
+  margin: 8px 0;
+  color: #dceaff;
   overflow-wrap: anywhere;
 }
 
@@ -215,16 +460,25 @@
 
 .chatInput input {
   flex: 1;
+  min-width: 0;
+}
+
+.chatInput button {
+  flex: none;
 }
 
 .notice {
-  max-width: 1100px;
+  max-width: 1180px;
   margin: 0 auto 24px;
-  padding: 0 22px;
-  color: #cbd5e1;
+  padding: 0 24px;
+
+  color: #a6bad6;
+  font-size: 16px;
 }
 
-/* Mobile joystick + jump */
+/* =========================================
+   MOBILE JOYSTICK
+========================================= */
 
 .mobileControls {
   position: absolute;
@@ -241,26 +495,30 @@
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
-
   touch-action: none;
 }
 
 .joystick {
   position: relative;
 
-  width: 130px;
-  height: 130px;
+  width: 128px;
+  height: 128px;
   flex: none;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  border: 3px solid rgba(255, 255, 255, 0.45);
+  border: 3px solid #b7d9ff99;
   border-radius: 50%;
 
-  background: rgba(30, 30, 30, 0.3);
-  box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+  background:
+    radial-gradient(circle, #2b477666, #0b152c99);
+
+  box-shadow:
+    0 0 0 4px #07101e88,
+    inset 0 0 18px #7fcaff22,
+    0 0 24px #0005;
 
   pointer-events: auto;
   touch-action: none;
@@ -268,45 +526,52 @@
 }
 
 .joystickActive {
-  background: rgba(50, 50, 50, 0.45);
-  border-color: rgba(255, 255, 255, 0.75);
+  border-color: #8bdcff;
+  background: #234c79aa;
 }
 
 .joystickKnob {
   position: absolute;
 
-  width: 44px;
-  height: 44px;
+  width: 46px;
+  height: 46px;
 
+  border: 3px solid #e3f5ff;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.75);
-  border: 2px solid rgba(255, 255, 255, 0.9);
 
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  background: linear-gradient(145deg, #8bdcff, #4388c9);
+
+  box-shadow:
+    0 4px 0 #204c7c,
+    0 0 16px #70caff66;
 
   pointer-events: none;
 }
 
-/* Jump */
+/* =========================================
+   JUMP BUTTON
+========================================= */
 
 .jumpButton {
   position: relative;
 
-  width: 82px;
-  height: 82px;
+  width: 84px;
+  height: 84px;
   flex: none;
 
-  border: 3px solid rgba(255, 255, 255, 0.65);
+  border: 3px solid #ffe2a1;
   border-radius: 50%;
 
-  background: rgba(255, 140, 0, 0.8);
-  color: white;
+  background: linear-gradient(145deg, #ffc95b, #ef812d);
+  color: #351c0b;
 
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: 1px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px;
+  line-height: 1.8;
 
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 5px 0 #9b4f20,
+    0 0 22px #ffb13b44;
 
   pointer-events: auto;
   touch-action: none;
@@ -316,11 +581,18 @@
 }
 
 .jumpButton:active {
-  transform: scale(0.92);
-  background: rgba(255, 110, 0, 0.95);
+  transform: translateY(4px) scale(0.94);
+
+  background: linear-gradient(145deg, #ffe08a, #ff9c3c);
+
+  box-shadow:
+    0 1px 0 #9b4f20,
+    0 0 18px #ffb13b66;
 }
 
-/* Small screens */
+/* =========================================
+   RESPONSIVE
+========================================= */
 
 @media (max-width: 700px) {
   .multiGrid {
@@ -329,19 +601,38 @@
   }
 
   .toolbar {
-    gap: 6px;
+    gap: 7px;
+    padding: 10px 8px;
   }
 
   .toolbar button {
-    padding: 9px 12px;
+    min-width: 76px;
+    padding: 9px 10px;
+    font-size: 15px;
+  }
+
+  .color {
+    padding: 5px 8px;
+    font-size: 7px;
+  }
+
+  .top {
+    min-height: 58px;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .top span {
+    font-size: 12px;
+  }
+
+  .top button {
+    padding: 8px 11px;
+    font-size: 15px;
   }
 
   .saveRow {
     flex-wrap: wrap;
-  }
-
-  .top {
-    font-size: 13px;
   }
 }
 
@@ -351,18 +642,27 @@
   }
 
   .joystick {
-    width: 112px;
-    height: 112px;
+    width: 108px;
+    height: 108px;
+  }
+
+  .joystickKnob {
+    width: 40px;
+    height: 40px;
   }
 
   .jumpButton {
     width: 72px;
     height: 72px;
-    font-size: 14px;
+    font-size: 9px;
+  }
+
+  .dialog {
+    padding: 24px 18px 18px;
   }
 }
 
-/* Mobile landscape */
+/* Landscape phone */
 
 @media (max-height: 450px) and (orientation: landscape) {
   .mobileControls {
@@ -370,13 +670,21 @@
   }
 
   .joystick {
-    width: 96px;
-    height: 96px;
+    width: 92px;
+    height: 92px;
   }
 
   .jumpButton {
     width: 64px;
     height: 64px;
+  }
+
+  .toolbar {
+    padding: 7px;
+  }
+
+  .top {
+    min-height: 48px;
   }
 }
 
