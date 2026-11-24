@@ -1,12 +1,14 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import styles from "./StartScreen.module.css";
+import { useLanguage } from "@/lib/i18n/LanguageProvider";
 
 type Mode = "login" | "register";
 
 export default function StartScreen() {
+  const { language, setLanguage, t } = useLanguage();
+
   const [mode, setMode] = useState<Mode | null>(null);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -24,17 +26,15 @@ export default function StartScreen() {
     const params = new URLSearchParams(window.location.search);
 
     if (params.has("authError")) {
-      setError(
-        "Google sign-in could not be completed. Check Supabase Google provider settings."
-      );
+      setError(t("googleError"));
     }
-  }, []);
+  }, [t]);
 
   async function submit() {
     setError("");
 
     if (mode === "register" && password !== confirm) {
-      setError("Passwords do not match.");
+      setError(t("passwordMismatch"));
       return;
     }
 
@@ -55,11 +55,11 @@ export default function StartScreen() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || "Authentication failed.");
+        throw new Error(data.error || t("authFailed"));
       }
 
       if (mode === "register" && !data.success) {
-        throw new Error(data.error || "Registration failed.");
+        throw new Error(data.error || t("registerFailed"));
       }
 
       window.location.href = "/play";
@@ -67,7 +67,7 @@ export default function StartScreen() {
       setError(
         error instanceof Error
           ? error.message
-          : "Something went wrong."
+          : t("somethingWrong")
       );
     } finally {
       setBusy(false);
@@ -84,7 +84,9 @@ export default function StartScreen() {
         <div className={styles.headerRight}>
           {user ? (
             <>
-              <span>Hi, {user.username}</span>
+              <span>
+                {t("greeting")}, {user.username}
+              </span>
 
               <button
                 onClick={async () => {
@@ -95,16 +97,22 @@ export default function StartScreen() {
                   setUser(null);
                 }}
               >
-                Log out
+                {t("logout")}
               </button>
             </>
           ) : (
             <button onClick={() => setMode("login")}>
-              Log in
+              {t("login")}
             </button>
           )}
 
-          <select aria-label="Language" defaultValue="en">
+          <select
+            aria-label="Language"
+            value={language}
+            onChange={(event) =>
+              setLanguage(event.target.value as "en" | "vi" | "zh")
+            }
+          >
             <option value="en">English</option>
             <option value="vi">Tiếng Việt</option>
             <option value="zh">中文</option>
@@ -114,9 +122,7 @@ export default function StartScreen() {
 
       <section className={styles.hero}>
         <div className={styles.copy}>
-          <p className={styles.eyebrow}>
-            YOUR WORLD. YOUR RULES.
-          </p>
+          <p className={styles.eyebrow}>{t("welcome")}</p>
 
           <h1>
             Build, Break,
@@ -125,8 +131,7 @@ export default function StartScreen() {
           </h1>
 
           <p className={styles.description}>
-            Welcome to Build, Break, Paint! You can build,
-            break and paint there!
+            {t("description")}
           </p>
 
           <div className={styles.actions}>
@@ -138,7 +143,7 @@ export default function StartScreen() {
                   : setMode("login")
               }
             >
-              ▶ Play
+              ▶ {t("play")}
             </button>
 
             <button
@@ -149,13 +154,13 @@ export default function StartScreen() {
                   : setMode("login")
               }
             >
-              🌐 Multiplayer
+              🌐 {t("multiplayer")}
             </button>
           </div>
 
           {!user && (
             <p className={styles.hint}>
-              Sign in or create an account to start playing.
+              {t("loginHint")}
             </p>
           )}
         </div>
@@ -200,18 +205,18 @@ export default function StartScreen() {
 
             <h2>
               {mode === "login"
-                ? "Welcome back"
-                : "Create account"}
+                ? t("welcomeBack")
+                : t("createAccount")}
             </h2>
 
             <p>
               {mode === "login"
-                ? "Log in to continue your world."
-                : "Choose a username and password."}
+                ? t("loginDescription")
+                : t("registerDescription")}
             </p>
 
             <label>
-              Username
+              {t("username")}
               <input
                 value={username}
                 onChange={(event) =>
@@ -222,7 +227,7 @@ export default function StartScreen() {
             </label>
 
             <label>
-              Password
+              {t("password")}
               <input
                 type="password"
                 value={password}
@@ -239,7 +244,7 @@ export default function StartScreen() {
 
             {mode === "register" && (
               <label>
-                Confirm password
+                {t("confirmPassword")}
                 <input
                   type="password"
                   value={confirm}
@@ -261,10 +266,10 @@ export default function StartScreen() {
               onClick={submit}
             >
               {busy
-                ? "Please wait..."
+                ? t("wait")
                 : mode === "login"
-                  ? "Log in"
-                  : "Register"}
+                  ? t("login")
+                  : t("register")}
             </button>
 
             <button
@@ -273,13 +278,13 @@ export default function StartScreen() {
                 window.location.assign("/api/auth/google")
               }
             >
-              Continue with Google
+              {t("googleLogin")}
             </button>
 
             <p className={styles.switch}>
               {mode === "login"
-                ? "New here?"
-                : "Already have an account?"}
+                ? t("newHere")
+                : t("alreadyAccount")}
 
               <button
                 onClick={() => {
@@ -289,7 +294,9 @@ export default function StartScreen() {
                   setError("");
                 }}
               >
-                {mode === "login" ? "Register" : "Log in"}
+                {mode === "login"
+                  ? t("register")
+                  : t("login")}
               </button>
             </p>
           </section>
