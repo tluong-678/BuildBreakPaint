@@ -99,7 +99,7 @@ npm run start
 
 ## 🌐 Website chính thức
 
-[BuildBreakPaint](buildbreakpaintr.up.railway.app)
+[BuildBreakPaint](https://buildbreakpaintr.up.railway.app/)
 
 ## 📁 Repository GitHub
 
