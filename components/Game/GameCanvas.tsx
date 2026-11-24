@@ -1,21 +1,10 @@
 
 "use client";
 
-import {
-  useEffect,
-  useRef,
-} from "react";
+import { useEffect, useRef } from "react";
 import * as THREE from "three";
-import {
-  Canvas,
-  useFrame,
-  useThree,
-} from "@react-three/fiber";
-import {
-  Grid,
-  Html,
-  OrbitControls,
-} from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { Grid, Html, OrbitControls } from "@react-three/drei";
 import type { BlockData } from "./types";
 
 type PlayerPosition = {
@@ -111,12 +100,15 @@ function BlockyAvatar({
     if (leftArm.current) {
       leftArm.current.rotation.x = swing;
     }
+
     if (rightArm.current) {
       rightArm.current.rotation.x = -swing;
     }
+
     if (leftLeg.current) {
       leftLeg.current.rotation.x = -swing;
     }
+
     if (rightLeg.current) {
       rightLeg.current.rotation.x = swing;
     }
@@ -160,6 +152,7 @@ function BlockyAvatar({
         <boxGeometry args={[0.07, 0.09, 0.025]} />
         <meshStandardMaterial color="#17253b" />
       </mesh>
+
       <mesh position={[0.15, 0.96, -0.315]}>
         <boxGeometry args={[0.07, 0.09, 0.025]} />
         <meshStandardMaterial color="#17253b" />
@@ -180,6 +173,7 @@ function BlockyAvatar({
         <boxGeometry args={[0.28, 0.82, 0.34]} />
         <meshStandardMaterial color="#ffd0a5" />
       </mesh>
+
       <mesh
         ref={rightArm}
         position={[0.53, 0.12, 0]}
@@ -198,6 +192,7 @@ function BlockyAvatar({
         <boxGeometry args={[0.34, 0.62, 0.38]} />
         <meshStandardMaterial color="#3156a5" />
       </mesh>
+
       <mesh
         ref={rightLeg}
         position={[0.21, -0.72, 0]}
@@ -236,20 +231,27 @@ function Player({
   const speed = 5;
   const gravity = 20;
   const jumpPower = 8;
-  const playerHeight = 1.8;
+
+  // Chiều cao collider gần với chiều cao avatar.
+  const playerHeight = 2.06;
 
   useEffect(() => {
     function keyDown(event: KeyboardEvent) {
       const key = event.key.toLowerCase();
 
-      if (
-        [
-          "w", "a", "s", "d",
-          "arrowup", "arrowdown",
-          "arrowleft", "arrowright",
-          " ",
-        ].includes(key)
-      ) {
+      const movementKeys = [
+        "w",
+        "a",
+        "s",
+        "d",
+        "arrowup",
+        "arrowdown",
+        "arrowleft",
+        "arrowright",
+        " ",
+      ];
+
+      if (movementKeys.includes(key)) {
         event.preventDefault();
       }
 
@@ -279,8 +281,9 @@ function Player({
     };
   }, []);
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     const player = playerRef.current;
+
     if (!player) return;
 
     const dt = Math.min(delta, 0.05);
@@ -291,12 +294,15 @@ function Player({
     if (keys.current.a || keys.current.arrowleft) {
       moveX -= 1;
     }
+
     if (keys.current.d || keys.current.arrowright) {
       moveX += 1;
     }
+
     if (keys.current.w || keys.current.arrowup) {
       moveZ -= 1;
     }
+
     if (keys.current.s || keys.current.arrowdown) {
       moveZ += 1;
     }
@@ -317,11 +323,13 @@ function Player({
       player.rotation.y = Math.atan2(moveX, -moveZ);
     }
 
+    // Nhận tín hiệu nhảy từ nút nhảy trên màn hình.
     if (jumpSignal !== lastJump.current) {
       jumpRequested.current = true;
       lastJump.current = jumpSignal;
     }
 
+    // Nhảy khi đang đứng trên mặt đất hoặc block.
     if (jumpRequested.current && grounded.current) {
       velocityY.current = jumpPower;
       grounded.current = false;
@@ -333,10 +341,11 @@ function Player({
 
     velocityY.current -= gravity * dt;
     player.position.y += velocityY.current * dt;
+
     grounded.current = false;
 
-    // Floor collision.
-    const floorY = -0.5 + playerHeight / 2;
+    // Mặt sàn thật trong Scene nằm tại y = -1.
+    const floorY = -1 + playerHeight / 2;
 
     if (
       player.position.y <= floorY &&
@@ -347,17 +356,20 @@ function Player({
       grounded.current = true;
     }
 
-    // Block landing collision.
+    // Va chạm khi rơi xuống block.
     if (velocityY.current <= 0) {
       for (const block of blocks) {
         const insideX =
           Math.abs(player.position.x - block.x) < 0.48;
+
         const insideZ =
           Math.abs(player.position.z - block.z) < 0.48;
 
         const blockTop = block.y + 0.5;
+
         const currentBottom =
           player.position.y - playerHeight / 2;
+
         const previousBottom =
           previousY - playerHeight / 2;
 
@@ -369,20 +381,21 @@ function Player({
         ) {
           player.position.y =
             blockTop + playerHeight / 2;
+
           velocityY.current = 0;
           grounded.current = true;
         }
       }
     }
 
-    // Respawn if the player falls.
+    // Hồi sinh nếu rơi khỏi bản đồ.
     if (player.position.y < -15) {
       player.position.set(3, 1.1, 3);
       velocityY.current = 0;
       grounded.current = false;
     }
 
-    // Camera follows the player.
+    // Camera bám theo người chơi.
     const target = new THREE.Vector3(
       player.position.x,
       player.position.y + 1.1,
@@ -390,15 +403,17 @@ function Player({
     );
 
     const cameraOffset = new THREE.Vector3(7, 7, 9);
-    const desiredCamera = target.clone().add(cameraOffset);
+
+    const desiredCamera = target
+      .clone()
+      .add(cameraOffset);
 
     camera.position.lerp(
       desiredCamera,
       Math.min(1, dt * 3)
     );
 
-
-    // Send position to multiplayer.
+    // Gửi vị trí lên multiplayer định kỳ.
     sendTimer.current += dt;
 
     if (sendTimer.current >= 0.1) {
